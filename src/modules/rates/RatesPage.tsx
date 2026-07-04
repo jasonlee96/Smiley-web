@@ -8,6 +8,7 @@ import {
   ReferenceLine, ResponsiveContainer,
 } from 'recharts'
 import { format, parseISO } from 'date-fns'
+import TransferAlertBanner from './TransferAlertBanner'
 
 export default function RatesPage() {
   const { latestQuery, dailyQuery } = useRates()
@@ -34,6 +35,7 @@ export default function RatesPage() {
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <TransferAlertBanner />
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
           <h1 style={{ fontFamily: 'Syne', fontWeight: 800, fontSize: 28, letterSpacing: '-0.03em' }}>Exchange Rates</h1>
