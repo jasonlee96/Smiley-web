@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { ratesApi } from '../api/rates'
+import { useTransferPrefs } from '../context/TransferPrefs'
 
 export function useRates() {
   const latestQuery = useQuery({
@@ -15,4 +16,13 @@ export function useRates() {
   })
 
   return { latestQuery, dailyQuery }
+}
+
+export function useFxRecommendation() {
+  const { amount, urgency } = useTransferPrefs()
+  return useQuery({
+    queryKey: ['rates', 'recommendation', amount, urgency],
+    queryFn: () => ratesApi.getRecommendation({ amount, urgency }),
+    refetchInterval: 300_000,
+  })
 }
