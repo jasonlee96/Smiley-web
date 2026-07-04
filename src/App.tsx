@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
+import { TransferPrefsProvider } from './context/TransferPrefs'
 import Layout from './components/Layout'
 import PinEntry from './components/PinEntry'
 import TodosPage from './modules/todos/TodosPage'
@@ -74,8 +75,10 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AppRoutes />
-    </BrowserRouter>
+    <TransferPrefsProvider>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </TransferPrefsProvider>
   )
 }
