@@ -1,6 +1,7 @@
 import { ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { CheckSquare, TrendingUp, Server, Activity, Cloud, Mail, Plane, LogOut, SplitSquareVertical, BarChart2, Wrench } from 'lucide-react'
+import { useFxRecommendation } from '../hooks/useRates'
 
 const NAV = [
   { to: '/todos',      label: 'Todos',    icon: CheckSquare },
@@ -18,6 +19,8 @@ const NAV = [
 export default function Layout({ children }: { children: ReactNode }) {
   const location = useLocation()
   const currentModule = NAV.find(n => location.pathname.startsWith(n.to))
+  const fxQuery = useFxRecommendation()
+  const showTransferDot = fxQuery.data?.recommendation.decision === 'exchange_now'
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -66,6 +69,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               to={to}
               title={label}
               style={({ isActive }) => ({
+                position: 'relative',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 width: 36, height: 36,
                 borderRadius: 8,
@@ -77,6 +81,15 @@ export default function Layout({ children }: { children: ReactNode }) {
               })}
             >
               <Icon size={15} />
+              {to === '/rates' && showTransferDot && (
+                <span style={{
+                  position: 'absolute', top: 4, right: 4,
+                  width: 8, height: 8, borderRadius: '50%',
+                  background: 'var(--accent-green)',
+                  boxShadow: '0 0 0 2px var(--bg-base)',
+                  animation: 'pulse-dot 1.6s ease-in-out infinite',
+                }} />
+              )}
             </NavLink>
           ))}
         </nav>

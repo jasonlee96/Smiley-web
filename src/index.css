@@ -207,6 +207,11 @@ body::after {
   to { transform: rotate(360deg); }
 }
 
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.85); }
+}
+
 .animate-fade-in { animation: fadeIn 0.4s ease forwards; }
 .animate-slide-up { animation: slideUp 0.4s ease forwards; }
 .animate-stagger > *:nth-child(1) { animation-delay: 0ms; }
