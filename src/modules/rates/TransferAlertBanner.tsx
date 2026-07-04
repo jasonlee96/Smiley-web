@@ -39,41 +39,6 @@ export default function TransferAlertBanner() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <GlassCard style={{ padding: '14px 18px', display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-muted)' }}>
-          Amount (SGD)
-          <input
-            type="number"
-            min={1}
-            value={amountInput}
-            onChange={(e) => handleAmountChange(e.target.value)}
-            style={{
-              width: 100, padding: '6px 8px', borderRadius: 6,
-              border: '1px solid var(--border)', background: 'var(--bg-surface)',
-              color: 'var(--text-primary)', fontFamily: 'IBM Plex Mono', fontSize: 13,
-            }}
-          />
-        </label>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {URGENCIES.map((u) => (
-            <button
-              key={u}
-              onClick={() => setUrgency(u)}
-              style={{
-                padding: '6px 12px', borderRadius: 6, fontSize: 12, textTransform: 'capitalize',
-                border: `1px solid ${urgency === u ? 'var(--border-active)' : 'var(--border)'}`,
-                background: urgency === u ? 'var(--accent-cyan-dim)' : 'transparent',
-                color: urgency === u ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-                cursor: 'pointer',
-              }}
-            >
-              {u}
-            </button>
-          ))}
-        </div>
-        {query.isFetching && <Spinner size={14} />}
-      </GlassCard>
-
       {rec?.decision === 'exchange_now' && !dismissed && (
         <GlassCard style={{
           padding: '18px 20px',
@@ -125,6 +90,41 @@ export default function TransferAlertBanner() {
             : 'Mixed signal — consider splitting the transfer'}
         </p>
       )}
+
+      <GlassCard style={{ padding: '14px 18px', display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+          Amount (SGD)
+          <input
+            type="number"
+            min={1}
+            value={amountInput}
+            onChange={(e) => handleAmountChange(e.target.value)}
+            style={{
+              width: 100, padding: '6px 8px', borderRadius: 6,
+              border: '1px solid var(--border)', background: 'var(--bg-surface)',
+              color: 'var(--text-primary)', fontFamily: 'IBM Plex Mono', fontSize: 13,
+            }}
+          />
+        </label>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {URGENCIES.map((u) => (
+            <button
+              key={u}
+              onClick={() => setUrgency(u)}
+              style={{
+                padding: '6px 12px', borderRadius: 6, fontSize: 12, textTransform: 'capitalize',
+                border: `1px solid ${urgency === u ? 'var(--border-active)' : 'var(--border)'}`,
+                background: urgency === u ? 'var(--accent-cyan-dim)' : 'transparent',
+                color: urgency === u ? 'var(--accent-cyan)' : 'var(--text-secondary)',
+                cursor: 'pointer',
+              }}
+            >
+              {u}
+            </button>
+          ))}
+        </div>
+        {query.isFetching && <Spinner size={14} />}
+      </GlassCard>
     </div>
   )
 }
