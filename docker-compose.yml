@@ -1,0 +1,13 @@
+services:
+  smiley-web:
+    build: .
+    container_name: smiley-web
+    ports:
+      - "4000:80"
+    networks:
+      - smileyapp_mozart-network
+    restart: unless-stopped
+
+networks:
+  smileyapp_mozart-network:
+    external: true
