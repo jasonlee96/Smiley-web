@@ -23,6 +23,7 @@ import QuantJobsPage from './modules/quant/JobsPage'
 import SettingsPage from './modules/quant/SettingsPage'
 import ToolsHubPage from './modules/tools/ToolsHubPage'
 import Base64ImagePage from './modules/tools/base64Image/Base64ImagePage'
+import NetWorthPage from './modules/networth/NetWorthPage'
 
 function AppRoutes() {
   const location = useLocation()
@@ -51,6 +52,7 @@ function AppRoutes() {
         <Route path="/" element={<Navigate to="/todos" replace />} />
         <Route path="/todos" element={<TodosPage />} />
         <Route path="/rates" element={<RatesPage />} />
+        <Route path="/net-worth" element={<NetWorthPage />} />
         <Route path="/ec2" element={<EC2Page />} />
         <Route path="/jobs" element={<JobsPage />} />
         <Route path="/weather" element={<WeatherPage />} />

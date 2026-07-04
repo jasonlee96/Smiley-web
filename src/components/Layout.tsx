@@ -1,11 +1,12 @@
 import { ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { CheckSquare, TrendingUp, Server, Activity, Cloud, Mail, Plane, LogOut, SplitSquareVertical, BarChart2, Wrench } from 'lucide-react'
+import { CheckSquare, TrendingUp, Server, Activity, Cloud, Mail, Plane, LogOut, SplitSquareVertical, BarChart2, Wrench, Wallet } from 'lucide-react'
 import { useFxRecommendation } from '../hooks/useRates'
 
 const NAV = [
   { to: '/todos',      label: 'Todos',    icon: CheckSquare },
   { to: '/rates',      label: 'Rates',    icon: TrendingUp },
+  { to: '/net-worth',  label: 'Net Worth', icon: Wallet },
   { to: '/ec2',        label: 'EC2',      icon: Server },
   { to: '/jobs',       label: 'Jobs',     icon: Activity },
   { to: '/weather',    label: 'Weather',  icon: Cloud },
