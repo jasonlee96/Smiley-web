@@ -24,6 +24,10 @@ import SettingsPage from './modules/quant/SettingsPage'
 import ToolsHubPage from './modules/tools/ToolsHubPage'
 import Base64ImagePage from './modules/tools/base64Image/Base64ImagePage'
 import NetWorthPage from './modules/networth/NetWorthPage'
+import ExpensesHubPage from './modules/expenses/ExpensesHubPage'
+import MonthDetailPage from './modules/expenses/MonthDetailPage'
+import CategoriesPage from './modules/expenses/CategoriesPage'
+import ImportPage from './modules/expenses/ImportPage'
 
 function AppRoutes() {
   const location = useLocation()
@@ -53,6 +57,10 @@ function AppRoutes() {
         <Route path="/todos" element={<TodosPage />} />
         <Route path="/rates" element={<RatesPage />} />
         <Route path="/net-worth" element={<NetWorthPage />} />
+        <Route path="/expenses" element={<ExpensesHubPage />} />
+        <Route path="/expenses/categories" element={<CategoriesPage />} />
+        <Route path="/expenses/import" element={<ImportPage />} />
+        <Route path="/expenses/:year/:month" element={<MonthDetailPage />} />
         <Route path="/ec2" element={<EC2Page />} />
         <Route path="/jobs" element={<JobsPage />} />
         <Route path="/weather" element={<WeatherPage />} />
