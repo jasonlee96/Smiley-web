@@ -9,7 +9,7 @@ import type { Loan } from '../../../types/networth'
 const LOAN_TYPE_LABELS: Record<string, string> = { home: 'Home Loan', car: 'Car Loan', personal: 'Personal', other: 'Other' }
 
 function fmt(n: number) {
-  return n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(n).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function LoanRow({ loan, onEdit, onDelete }: { loan: Loan; onEdit: () => void; onDelete: () => void }) {
