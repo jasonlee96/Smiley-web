@@ -88,6 +88,9 @@ export default function ImportPage() {
     setMeta(null)
     setResult(null)
     setErrorCode(null)
+    setOverrideYear(null)
+    setOverrideMonth(null)
+    setPassword('')
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -127,6 +130,7 @@ export default function ImportPage() {
             ref={fileInputRef}
             type="file"
             accept="application/pdf"
+            onClick={e => { e.currentTarget.value = '' }}
             onChange={e => { const f = e.target.files?.[0]; if (f) handleFileSelected(f) }}
           />
         </GlassCard>
