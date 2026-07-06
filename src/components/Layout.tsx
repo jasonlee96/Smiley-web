@@ -148,6 +148,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 position: 'absolute', top: 44, right: 0, zIndex: 60,
                 width: 280, padding: 10,
                 display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6,
+                background: 'rgba(8,11,18,0.97)',
               }}>
                 {OVERFLOW_NAV.map(({ to, label, icon: Icon }) => {
                   const active = location.pathname.startsWith(to)
