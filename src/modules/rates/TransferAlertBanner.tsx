@@ -3,7 +3,7 @@ import { X } from 'lucide-react'
 import GlassCard from '../../components/GlassCard'
 import Spinner from '../../components/Spinner'
 import { useTransferPrefs, type Urgency } from '../../context/TransferPrefs'
-import { useFxRecommendation } from '../../hooks/useRates'
+import { useFxRecommendation, useFxProfile } from '../../hooks/useRates'
 import { reasonLabel } from './reasonLabels'
 
 const DISMISS_KEY = 'transferAlert.dismissed'
@@ -11,17 +11,27 @@ const URGENCIES: Urgency[] = ['low', 'medium', 'high']
 
 export default function TransferAlertBanner() {
   const { amount, urgency, setAmount, setUrgency } = useTransferPrefs()
+  const { profileQuery, updateTargetRate } = useFxProfile()
   const [amountInput, setAmountInput] = useState(String(amount))
+  const [targetInput, setTargetInput] = useState('')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const targetDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [dismissed, setDismissed] = useState(() => sessionStorage.getItem(DISMISS_KEY) === '1')
 
   useEffect(() => {
     setAmountInput(String(amount))
   }, [amount])
 
+  // Seed the target input from the stored FX profile once loaded.
+  const profileTarget = profileQuery.data?.target_rate
+  useEffect(() => {
+    setTargetInput(profileTarget != null ? String(profileTarget) : '')
+  }, [profileTarget])
+
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
+      if (targetDebounceRef.current) clearTimeout(targetDebounceRef.current)
     }
   }, [])
 
@@ -32,6 +42,20 @@ export default function TransferAlertBanner() {
       const n = Number(value)
       if (isFinite(n) && n > 0) setAmount(n)
     }, 400)
+  }
+
+  function handleTargetChange(value: string) {
+    setTargetInput(value)
+    if (targetDebounceRef.current) clearTimeout(targetDebounceRef.current)
+    const trimmed = value.trim()
+    // Empty input is left as-is: the backend cannot clear a stored target to null.
+    if (trimmed === '') return
+    const n = Number(trimmed)
+    if (!isFinite(n) || n <= 0) return
+    if (n === profileTarget) return
+    targetDebounceRef.current = setTimeout(() => {
+      updateTargetRate.mutate(n)
+    }, 500)
   }
 
   const query = useFxRecommendation()
@@ -105,6 +129,24 @@ export default function TransferAlertBanner() {
               color: 'var(--text-primary)', fontFamily: 'IBM Plex Mono', fontSize: 13,
             }}
           />
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+          Target rate (MYR)
+          <input
+            type="number"
+            min={0}
+            step={0.0001}
+            placeholder="e.g. 3.45"
+            value={targetInput}
+            onChange={(e) => handleTargetChange(e.target.value)}
+            disabled={profileQuery.isLoading}
+            style={{
+              width: 110, padding: '6px 8px', borderRadius: 6,
+              border: '1px solid var(--border)', background: 'var(--bg-surface)',
+              color: 'var(--text-primary)', fontFamily: 'IBM Plex Mono', fontSize: 13,
+            }}
+          />
+          {updateTargetRate.isPending && <Spinner size={12} />}
         </label>
         <div style={{ display: 'flex', gap: 4 }}>
           {URGENCIES.map((u) => (
