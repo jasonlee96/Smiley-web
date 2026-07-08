@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { useGmailDigest, useGmailStatus, useGmailRefresh, useGmailDisconnect } from '../../hooks/useGmail'
-import { GMAIL_AUTH_URL, type GmailEmail } from '../../api/gmail'
+import { useGmailDigest, useGmailAttention, useGmailStatus, useGmailRefresh, useGmailDisconnect } from '../../hooks/useGmail'
+import { GMAIL_AUTH_URL, type GmailEmail, type AttentionEmail } from '../../api/gmail'
 import GlassCard from '../../components/GlassCard'
 import Spinner from '../../components/Spinner'
-import { RefreshCw, Mail, CheckCircle, XCircle, ExternalLink } from 'lucide-react'
+import { RefreshCw, Mail, CheckCircle, XCircle, ExternalLink, ChevronRight, ChevronDown } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 
 const CATEGORY_CONFIG: Record<GmailEmail['category'], { label: string; color: string }> = {
@@ -52,32 +52,95 @@ function EmailRow({ email }: { email: GmailEmail }) {
   )
 }
 
-function Section({ title, color, emails }: { title: string; color: string; emails: GmailEmail[] }) {
-  if (emails.length === 0) return null
+const ATTN_COLOR: Record<AttentionEmail['category'], string> = { urgent: '#DC2626', important: '#D97706' }
+
+function dayLabel(dateStr: string): string {
+  const d = parseISO(dateStr)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const diff = Math.round((today.getTime() - d.getTime()) / 86400000)
+  if (diff <= 0) return 'Today'
+  if (diff === 1) return 'Yesterday'
+  return `${diff}d ago`
+}
+
+function AttentionRow({ email }: { email: AttentionEmail }) {
+  const color = ATTN_COLOR[email.category]
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
+      padding: '12px 0', borderTop: '1px solid rgba(255,255,255,0.04)',
+    }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{senderName(email.from)}</span>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'IBM Plex Mono' }}>{dayLabel(email.date)}</span>
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>{email.subject}</p>
+        {email.reason && (
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '3px 0 0', fontStyle: 'italic' }}>{email.reason}</p>
+        )}
+      </div>
+      <span style={{
+        fontSize: 10, fontFamily: 'IBM Plex Mono', fontWeight: 700,
+        color, background: `${color}1a`, border: `1px solid ${color}44`, borderRadius: 6,
+        padding: '2px 7px', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap',
+      }}>
+        {email.category}
+      </span>
+    </div>
+  )
+}
+
+// Merged urgent + important across the last 7 days — one listing
+function AttentionList({ items }: { items: AttentionEmail[] }) {
+  if (items.length === 0) return null
+  const urgentCount = items.filter(i => i.category === 'urgent').length
   return (
     <GlassCard style={{ padding: '16px 18px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-        <span style={{ fontFamily: 'Syne', fontWeight: 800, fontSize: 14, color }}>{title}</span>
-        <span style={{
-          fontSize: 11, fontFamily: 'IBM Plex Mono', fontWeight: 700, color,
-          background: `${color}1a`, borderRadius: 10, padding: '1px 8px',
-        }}>{emails.length}</span>
+        <span style={{ fontFamily: 'Syne', fontWeight: 800, fontSize: 14, color: 'var(--text-primary)' }}>Needs attention</span>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>· last 7 days</span>
+        <span style={{ marginLeft: 'auto', fontSize: 11, fontFamily: 'IBM Plex Mono', color: 'var(--text-muted)' }}>
+          {urgentCount > 0 ? `${urgentCount} urgent · ` : ''}{items.length} total
+        </span>
       </div>
       <div>
-        {emails.map(e => <EmailRow key={e.index} email={e} />)}
+        {items.map((e, i) => <AttentionRow key={e.id ?? `${e.date}-${i}`} email={e} />)}
       </div>
+    </GlassCard>
+  )
+}
+
+// Today's routine — collapsed by default (low-priority, same-day only)
+function RoutineSection({ emails }: { emails: GmailEmail[] }) {
+  const [open, setOpen] = useState(false)
+  if (emails.length === 0) return null
+  return (
+    <GlassCard style={{ padding: '16px 18px' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, color: 'inherit' }}
+      >
+        {open ? <ChevronDown size={15} color="var(--text-muted)" /> : <ChevronRight size={15} color="var(--text-muted)" />}
+        <span style={{ fontFamily: 'Syne', fontWeight: 800, fontSize: 14, color: '#6B7280' }}>Routine · Today</span>
+        <span style={{ fontSize: 11, fontFamily: 'IBM Plex Mono', fontWeight: 700, color: '#6B7280', background: '#6B72801a', borderRadius: 10, padding: '1px 8px' }}>{emails.length}</span>
+      </button>
+      {open && <div style={{ marginTop: 4 }}>{emails.map(e => <EmailRow key={e.index} email={e} />)}</div>}
     </GlassCard>
   )
 }
 
 export default function MailPage() {
   const digestQuery = useGmailDigest()
+  const attentionQuery = useGmailAttention(7)
   const statusQuery = useGmailStatus()
   const refreshMutation = useGmailRefresh()
   const disconnectMutation = useGmailDisconnect()
   const [refreshing, setRefreshing] = useState(false)
 
   const digest = digestQuery.data
+  const attention = attentionQuery.data ?? []
   const connected = statusQuery.data?.connected ?? false
 
   async function handleRefresh() {
@@ -90,9 +153,7 @@ export default function MailPage() {
     disconnectMutation.mutate()
   }
 
-  const urgent    = digest?.emails.filter(e => e.category === 'urgent')    ?? []
-  const important = digest?.emails.filter(e => e.category === 'important') ?? []
-  const routine   = digest?.emails.filter(e => e.category === 'routine')   ?? []
+  const routine = digest?.emails.filter(e => e.category === 'routine') ?? []
 
   const loading = digestQuery.isLoading || statusQuery.isLoading
   const errored = digestQuery.isError || statusQuery.isError
@@ -191,38 +252,43 @@ export default function MailPage() {
           </GlassCard>
 
           {/* Digest body */}
-          {!digest ? (
+          {!digest && attention.length === 0 ? (
             <GlassCard style={{ padding: '40px 24px', textAlign: 'center' }}>
               <Mail size={48} color="var(--text-muted)" style={{ margin: '0 auto' }} />
               <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginTop: 12 }}>
                 No digest yet. Click "Fetch Now" to run the digest.
               </p>
             </GlassCard>
-          ) : digest.email_count === 0 ? (
-            <GlassCard style={{ padding: '40px 24px', textAlign: 'center' }}>
-              <CheckCircle size={48} color="var(--accent-green)" style={{ margin: '0 auto' }} />
-              <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginTop: 12 }}>
-                Inbox clear — no new emails in the last 24 hours.
-              </p>
-            </GlassCard>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {digest.summary && (
+              {digest?.summary && (
                 <GlassCard style={{ padding: 0, overflow: 'hidden' }}>
                   <div style={{
                     background: 'rgba(6,182,212,0.05)', borderLeft: '3px solid var(--accent-cyan)',
                     padding: '14px 18px',
                   }}>
                     <span style={{ fontSize: 10, fontFamily: 'IBM Plex Mono', fontWeight: 700, color: 'var(--accent-cyan)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                      AI Summary
+                      AI Summary · Today
                     </span>
                     <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.65, margin: '6px 0 0' }}>{digest.summary}</p>
                   </div>
                 </GlassCard>
               )}
-              <Section title="Urgent"    color="#DC2626" emails={urgent} />
-              <Section title="Important" color="#D97706" emails={important} />
-              <Section title="Routine"   color="#6B7280" emails={routine} />
+
+              {/* Merged urgent + important across the last 7 days */}
+              <AttentionList items={attention} />
+
+              {/* Today's routine, collapsed */}
+              <RoutineSection emails={routine} />
+
+              {attention.length === 0 && routine.length === 0 && (
+                <GlassCard style={{ padding: '40px 24px', textAlign: 'center' }}>
+                  <CheckCircle size={48} color="var(--accent-green)" style={{ margin: '0 auto' }} />
+                  <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginTop: 12 }}>
+                    Nothing needs attention — no urgent or important mail in the last 7 days.
+                  </p>
+                </GlassCard>
+              )}
             </div>
           )}
         </>
