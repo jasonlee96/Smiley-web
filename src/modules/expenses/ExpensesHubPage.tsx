@@ -6,6 +6,7 @@ import GlassCard from '../../components/GlassCard'
 import Spinner from '../../components/Spinner'
 import { useExpenseMonthDetail, useExpenseMonths } from '../../hooks/useExpenses'
 import EntryFormModal from './EntryFormModal'
+import PendingStatementsCard from './PendingStatementsCard'
 
 function fmt(n: number) {
   return n.toLocaleString('en-MY', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -75,6 +76,8 @@ export default function ExpensesHubPage() {
           </div>
         )}
       </GlassCard>
+
+      <PendingStatementsCard />
 
       {donutData.length > 0 && (
         <GlassCard style={{ padding: '20px 22px' }}>

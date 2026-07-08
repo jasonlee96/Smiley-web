@@ -3,6 +3,7 @@ import type {
   ExpenseCategory, ExpenseMonthSummary, ExpenseMonthDetail,
   ExpenseEntry, ExpenseEntryRaw, CreateEntryInput,
   ImportPreviewResult, ImportConfirmResult,
+  PendingStatement, PendingStatementState, PreparePendingResult,
 } from '../types/expenses'
 
 function parseEntry(e: ExpenseEntryRaw): ExpenseEntry {
@@ -54,5 +55,18 @@ export const expensesApi = {
   importConfirm: (transactions: unknown[], overrideYear?: number, overrideMonth?: number) =>
     client.post<ImportConfirmResult>('/expenses/import/confirm', {
       transactions, override_year: overrideYear, override_month: overrideMonth,
+    }).then(r => r.data),
+
+  // Pending statements (detected from the Gmail digest)
+  getPendingStatements: (states?: PendingStatementState[]) =>
+    client.get<PendingStatement[]>('/expenses/pending-statements', {
+      params: states?.length ? { state: states.join(',') } : undefined,
+    }).then(r => r.data),
+  preparePendingStatement: (id: number, password?: string) =>
+    client.post<PreparePendingResult>(`/expenses/pending-statements/${id}/prepare`,
+      password ? { password } : {}).then(r => r.data),
+  updatePendingStatement: (id: number, state: PendingStatementState, importedMonthId?: number) =>
+    client.patch<PendingStatement>(`/expenses/pending-statements/${id}`, {
+      state, imported_month_id: importedMonthId,
     }).then(r => r.data),
 }

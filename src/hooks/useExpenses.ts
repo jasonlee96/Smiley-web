@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { expensesApi } from '../api/expenses'
-import type { CreateEntryInput } from '../types/expenses'
+import type { CreateEntryInput, PendingStatementState } from '../types/expenses'
 
 // ── Categories ────────────────────────────────────────────────────────────
 
@@ -155,5 +155,32 @@ export function useImportConfirm() {
         qc.invalidateQueries({ queryKey: ['expenses', 'entries', y, m] })
       }
     },
+  })
+}
+
+// ── Pending statements (detected from the Gmail digest) ─────────────────────
+
+export function usePendingStatements(states?: PendingStatementState[]) {
+  return useQuery({
+    queryKey: ['expenses', 'pending-statements', states ?? 'default'],
+    queryFn: () => expensesApi.getPendingStatements(states),
+    staleTime: 60_000,
+  })
+}
+
+export function usePreparePendingStatement() {
+  return useMutation({
+    mutationFn: ({ id, password }: { id: number; password?: string }) =>
+      expensesApi.preparePendingStatement(id, password),
+  })
+}
+
+export function useUpdatePendingStatement() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, state, importedMonthId }: {
+      id: number; state: PendingStatementState; importedMonthId?: number
+    }) => expensesApi.updatePendingStatement(id, state, importedMonthId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['expenses', 'pending-statements'] }),
   })
 }
