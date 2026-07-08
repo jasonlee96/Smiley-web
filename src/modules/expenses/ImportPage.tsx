@@ -1,9 +1,12 @@
-import { useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, AlertTriangle } from 'lucide-react'
 import GlassCard from '../../components/GlassCard'
 import Spinner from '../../components/Spinner'
-import { useImportPreview, useImportConfirm, useExpenseCategories } from '../../hooks/useExpenses'
+import {
+  useImportPreview, useImportConfirm, useExpenseCategories,
+  usePreparePendingStatement, useUpdatePendingStatement,
+} from '../../hooks/useExpenses'
 import type { DraftTransaction } from '../../types/expenses'
 
 type Stage = 'idle' | 'uploading' | 'reviewing' | 'confirming' | 'done' | 'error'
@@ -17,6 +20,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   CLAUDE_FAILED: 'AI parsing failed. Please try again.',
   PARSE_FAILED: 'Could not parse AI output as JSON',
   NO_TRANSACTIONS: 'No transactions were found in this statement',
+  GMAIL_DISCONNECTED: 'Gmail is not connected. Reconnect it on the Mail page.',
+  DOWNLOAD_FAILED: 'Could not download the attachment from Gmail.',
 }
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
@@ -27,12 +32,19 @@ function fmt(n: number) {
 
 export default function ImportPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const pendingParam = searchParams.get('pending')
+  const pendingId = pendingParam ? parseInt(pendingParam) : null
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { data: categories = [] } = useExpenseCategories()
   const preview = useImportPreview()
   const confirmImport = useImportConfirm()
+  const preparePending = usePreparePendingStatement()
+  const updatePending = useUpdatePendingStatement()
+  const preparedRef = useRef(false)
 
-  const [stage, setStage] = useState<Stage>('idle')
+  const [stage, setStage] = useState<Stage>(pendingId ? 'uploading' : 'idle')
   const [password, setPassword] = useState('')
   const [errorCode, setErrorCode] = useState<string | null>(null)
   const [transactions, setTransactions] = useState<DraftTransaction[]>([])
@@ -61,6 +73,41 @@ export default function ImportPage() {
     }
   }
 
+  // Extract & import a detected pending statement (downloads the Gmail PDF)
+  async function handlePrepare(id: number) {
+    setStage('uploading')
+    setErrorCode(null)
+    try {
+      const res = await preparePending.mutateAsync({ id })
+      setTransactions(res.transactions)
+      setMeta({ total_parsed: res.total_parsed, text_truncated: res.text_truncated, skipped_rows: res.skipped_rows })
+      if (res.statement_month) {
+        const [y, m] = res.statement_month.split('-').map(Number)
+        setOverrideYear(y)
+        setOverrideMonth(m)
+      }
+      setStage('reviewing')
+    } catch (err: any) {
+      const code = err?.response?.data?.error ?? 'EXTRACT_FAILED'
+      // Portal-only statement (no attachment): fall back to manual file upload
+      if (code === 'NO_ATTACHMENT') {
+        setStage('idle')
+        return
+      }
+      setErrorCode(code)
+      setStage('error')
+    }
+  }
+
+  // On arrival with ?pending=<id>, auto-download + parse that statement once
+  useEffect(() => {
+    if (pendingId && !preparedRef.current) {
+      preparedRef.current = true
+      handlePrepare(pendingId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingId])
+
   function updateTransaction(id: string, patch: Partial<DraftTransaction>) {
     setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...patch } : t))
   }
@@ -75,6 +122,10 @@ export default function ImportPage() {
       })
       setResult(res)
       setStage('done')
+      // Mark the originating pending statement as imported (fire-and-forget)
+      if (pendingId) {
+        updatePending.mutate({ id: pendingId, state: 'imported' })
+      }
     } catch (err: any) {
       const code = err?.response?.data?.error ?? 'EXTRACT_FAILED'
       setErrorCode(code)

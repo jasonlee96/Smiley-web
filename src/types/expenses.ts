@@ -118,3 +118,24 @@ export interface ImportConfirmResult {
   skipped: number
   months_touched: string[]
 }
+
+export type PendingStatementState = 'awaiting_attachment' | 'ready' | 'imported' | 'dismissed'
+
+export interface PendingStatement {
+  id: number
+  bank: string | null
+  statement_month: string | null
+  email_from: string
+  email_subject: string
+  has_attachment: boolean
+  attachment_filename: string | null
+  state: PendingStatementState
+  imported_month_id: number | null
+  detected_at: string
+}
+
+// POST …/prepare returns the same draft shape as import preview, plus context
+export interface PreparePendingResult extends ImportPreviewResult {
+  pending_id: number
+  bank: string | null
+}
