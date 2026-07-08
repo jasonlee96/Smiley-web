@@ -2,6 +2,7 @@ import client from './client'
 
 export interface GmailEmail {
   index: number
+  id?: string | null
   from: string
   subject: string
   category: 'urgent' | 'important' | 'routine'
@@ -18,11 +19,24 @@ export interface GmailDigest {
   updated_at: string
 }
 
+// A merged urgent/important email across the last N days
+export interface AttentionEmail {
+  date: string            // YYYY-MM-DD — the digest day it arrived
+  id: string | null
+  from: string
+  subject: string
+  category: 'urgent' | 'important'
+  reason: string
+}
+
 export const GMAIL_AUTH_URL = 'https://ip-172-31-2-167.tail9203bc.ts.net/api/gmail/auth'
 
 export const gmailApi = {
   getDigest: () =>
     client.get<{ digest: GmailDigest | null }>('/gmail/digest').then(r => r.data.digest),
+  getAttention: (days = 7) =>
+    client.get<{ days: number; items: AttentionEmail[] }>('/gmail/digests/attention', { params: { days } })
+      .then(r => r.data.items),
   getStatus: () =>
     client.get<{ connected: boolean }>('/gmail/status').then(r => r.data),
   refresh: () =>

@@ -9,6 +9,14 @@ export function useGmailDigest() {
   })
 }
 
+export function useGmailAttention(days = 7) {
+  return useQuery({
+    queryKey: ['gmail', 'attention', days],
+    queryFn: () => gmailApi.getAttention(days),
+    staleTime: 15 * 60 * 1000,
+  })
+}
+
 export function useGmailStatus() {
   return useQuery({
     queryKey: ['gmail', 'status'],
@@ -21,7 +29,10 @@ export function useGmailRefresh() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: gmailApi.refresh,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['gmail', 'digest'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['gmail', 'digest'] })
+      qc.invalidateQueries({ queryKey: ['gmail', 'attention'] })
+    },
   })
 }
 
