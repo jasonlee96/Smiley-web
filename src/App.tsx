@@ -23,6 +23,7 @@ import QuantJobsPage from './modules/quant/JobsPage'
 import SettingsPage from './modules/quant/SettingsPage'
 import ToolsHubPage from './modules/tools/ToolsHubPage'
 import Base64ImagePage from './modules/tools/base64Image/Base64ImagePage'
+import SelfSignedCertPage from './modules/tools/selfSignedCert/SelfSignedCertPage'
 import NetWorthPage from './modules/networth/NetWorthPage'
 import ExpensesHubPage from './modules/expenses/ExpensesHubPage'
 import MonthDetailPage from './modules/expenses/MonthDetailPage'
@@ -78,6 +79,7 @@ function AppRoutes() {
         <Route path="/quant/settings" element={<SettingsPage />} />
         <Route path="/tools" element={<ToolsHubPage />} />
         <Route path="/tools/base64-image" element={<Base64ImagePage />} />
+        <Route path="/tools/self-signed-cert" element={<SelfSignedCertPage />} />
       </Routes>
     </Layout>
   )
