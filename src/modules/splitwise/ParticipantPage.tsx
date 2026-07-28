@@ -75,7 +75,8 @@ function AddExpenseForm({
   const dayPills = buildDayPills(startDate, endDate)
   const today = todayStr()
   const dayBeforeStart = startDate ? addDays(startDate, -1) : null
-  const isPreTour = !!startDate && today < startDate
+  const startKey = startDate ? new Date(startDate).toISOString().slice(0, 10) : null
+  const isPreTour = !!startKey && today < startKey
   const defaultIsDayZero = dayPills.length > 0 && isPreTour
   const defaultDate = defaultIsDayZero
     ? today
@@ -150,7 +151,7 @@ function AddExpenseForm({
                   type="button"
                   onClick={() => {
                     setDayZeroSelected(true)
-                    if (!(startDate && selectedDate < startDate)) {
+                    if (!(startKey && selectedDate < startKey)) {
                       setSelectedDate(dayBeforeStart ?? today)
                     }
                   }}
@@ -573,12 +574,13 @@ export default function ParticipantPage() {
             {/* Day-by-day chart */}
             {expenses.length > 0 && (() => {
               const startDate = participant.start_date
+              const startKey = startDate ? new Date(startDate).toISOString().slice(0, 10) : null
               const byDate: Record<string, number> = {}
               let preTourTotal = 0
               for (const e of expenses) {
                 const d = e.expense_date ? e.expense_date.slice(0, 10) : e.created_at.slice(0, 10)
                 const amt = parseFloat(e.amount as string)
-                if (startDate && d < startDate) {
+                if (startKey && d < startKey) {
                   preTourTotal += amt
                 } else {
                   byDate[d] = (byDate[d] ?? 0) + amt
