@@ -508,10 +508,17 @@ function expenseDay(e: SplitExpense) {
 }
 
 function buildDayData(expenses: SplitExpense[], startDate: string | null, endDate: string | null) {
+  const startKey = startDate ? new Date(startDate).toISOString().slice(0, 10) : null
   const byDate: Record<string, number> = {}
+  let preTourTotal = 0
   for (const e of expenses) {
     const d = expenseDay(e)
-    byDate[d] = (byDate[d] ?? 0) + (e.amount_base ? parseFloat(e.amount_base) : 0)
+    const amt = e.amount_base ? parseFloat(e.amount_base) : 0
+    if (startKey && d < startKey) {
+      preTourTotal += amt
+    } else {
+      byDate[d] = (byDate[d] ?? 0) + amt
+    }
   }
 
   if (startDate) {
@@ -519,6 +526,9 @@ function buildDayData(expenses: SplitExpense[], startDate: string | null, endDat
     const start = new Date(startDate)
     const end = endDate ? new Date(endDate) : new Date(Math.max(...Object.keys(byDate).map(d => new Date(d).getTime()), start.getTime()))
     const days: { label: string; total: number; date: string }[] = []
+    if (preTourTotal > 0) {
+      days.push({ label: 'D0', total: parseFloat(preTourTotal.toFixed(2)), date: 'Pre-Tour' })
+    }
     let d = new Date(start), day = 1
     while (d <= end) {
       const dateStr = d.toISOString().slice(0, 10)
@@ -645,7 +655,7 @@ function DashboardPanel({ tour }: { tour: TourDetail }) {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', marginTop: 10 }}>
                 {dayData.map(d => (
                   <span key={d.date} style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                    {d.label}: {new Date(d.date).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' })}
+                    {d.label}: {d.date === 'Pre-Tour' ? 'Pre-Tour' : new Date(d.date).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' })}
                   </span>
                 ))}
               </div>
