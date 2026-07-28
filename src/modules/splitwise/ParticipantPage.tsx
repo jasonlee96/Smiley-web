@@ -313,7 +313,9 @@ function ExpenseRow({ expense, token, baseCurrency }: { expense: SplitExpense; t
         <div style={{ fontWeight: 500, fontSize: 14 }}>{expense.description}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-            {new Date(expense.created_at).toLocaleString('en-SG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+            {expense.expense_date
+              ? new Date(expense.expense_date).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })
+              : new Date(expense.created_at).toLocaleString('en-SG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
           </span>
           {expense.split_with?.length > 0 && (
             <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
