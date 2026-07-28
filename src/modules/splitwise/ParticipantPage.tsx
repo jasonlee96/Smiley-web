@@ -35,6 +35,11 @@ function buildDayPills(startDate: string | null, endDate: string | null): Array<
 }
 
 function todayStr() { return new Date().toISOString().slice(0, 10) }
+function addDays(dateStr: string, delta: number): string {
+  const d = new Date(dateStr)
+  d.setDate(d.getDate() + delta)
+  return d.toISOString().slice(0, 10)
+}
 
 function AddExpenseForm({
   token,
@@ -64,12 +69,20 @@ function AddExpenseForm({
   const [category, setCategory] = useState('')
   const [splitWith, setSplitWith] = useState<string[]>(allParticipants)
 
-  // Date: pills if tour has dates, otherwise manual input
+  // Date: pills if tour has dates, otherwise manual input. A "Day 0" pill
+  // covers pre-tour costs (flights, visas, insurance) paid on any real date
+  // before startDate — it opens a free date field instead of a fixed pill date.
   const dayPills = buildDayPills(startDate, endDate)
   const today = todayStr()
-  const defaultDate = dayPills.find(p => p.date === today)?.date
-    ?? (dayPills.length > 0 ? dayPills[dayPills.length - 1].date : today)
+  const dayBeforeStart = startDate ? addDays(startDate, -1) : null
+  const isPreTour = !!startDate && today < startDate
+  const defaultIsDayZero = dayPills.length > 0 && isPreTour
+  const defaultDate = defaultIsDayZero
+    ? today
+    : dayPills.find(p => p.date === today)?.date
+      ?? (dayPills.length > 0 ? dayPills[dayPills.length - 1].date : today)
   const [selectedDate, setSelectedDate] = useState(defaultDate)
+  const [dayZeroSelected, setDayZeroSelected] = useState(defaultIsDayZero)
 
   const todayPillRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
@@ -127,36 +140,68 @@ function AddExpenseForm({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Date</span>
           {dayPills.length > 0 ? (
-            <div style={{
-              display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4,
-              scrollbarWidth: 'none', msOverflowStyle: 'none',
-            }}>
-              {dayPills.map((p, i) => {
-                const dateLabel = new Date(p.date).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' })
-                const isSelected = selectedDate === p.date
-                const isToday = p.date === today
-                return (
-                  <button
-                    key={p.date}
-                    ref={isToday || (p.date === selectedDate && !dayPills.some(x => x.date === today)) ? todayPillRef : undefined}
-                    type="button"
-                    onClick={() => setSelectedDate(p.date)}
-                    style={{
-                      flexShrink: 0,
-                      padding: '6px 14px', borderRadius: 8, cursor: 'pointer',
-                      border: `1px solid ${isSelected ? 'var(--accent-cyan)' : 'var(--border)'}`,
-                      background: isSelected ? 'var(--accent-cyan-dim)' : 'transparent',
-                      color: isSelected ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
-                    }}
-                  >
-                    <span style={{ fontSize: 11, fontWeight: 700 }}>Day {i + 1}</span>
-                    <span style={{ fontSize: 10, opacity: 0.8 }}>{dateLabel}</span>
-                    {isToday && <span style={{ fontSize: 8, color: 'var(--accent-cyan)', fontWeight: 700, marginTop: 1 }}>TODAY</span>}
-                  </button>
-                )
-              })}
-            </div>
+            <>
+              <div style={{
+                display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4,
+                scrollbarWidth: 'none', msOverflowStyle: 'none',
+              }}>
+                <button
+                  key="day-0"
+                  type="button"
+                  onClick={() => {
+                    setDayZeroSelected(true)
+                    if (!(startDate && selectedDate < startDate)) {
+                      setSelectedDate(dayBeforeStart ?? today)
+                    }
+                  }}
+                  style={{
+                    flexShrink: 0,
+                    padding: '6px 14px', borderRadius: 8, cursor: 'pointer',
+                    border: `1px solid ${dayZeroSelected ? 'var(--accent-cyan)' : 'var(--border)'}`,
+                    background: dayZeroSelected ? 'var(--accent-cyan-dim)' : 'transparent',
+                    color: dayZeroSelected ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+                  }}
+                >
+                  <span style={{ fontSize: 11, fontWeight: 700 }}>Day 0</span>
+                  <span style={{ fontSize: 10, opacity: 0.8 }}>Pre-Tour</span>
+                </button>
+                {dayPills.map((p, i) => {
+                  const dateLabel = new Date(p.date).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' })
+                  const isSelected = !dayZeroSelected && selectedDate === p.date
+                  const isToday = p.date === today
+                  return (
+                    <button
+                      key={p.date}
+                      ref={isToday || (p.date === selectedDate && !dayZeroSelected && !dayPills.some(x => x.date === today)) ? todayPillRef : undefined}
+                      type="button"
+                      onClick={() => { setDayZeroSelected(false); setSelectedDate(p.date) }}
+                      style={{
+                        flexShrink: 0,
+                        padding: '6px 14px', borderRadius: 8, cursor: 'pointer',
+                        border: `1px solid ${isSelected ? 'var(--accent-cyan)' : 'var(--border)'}`,
+                        background: isSelected ? 'var(--accent-cyan-dim)' : 'transparent',
+                        color: isSelected ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+                      }}
+                    >
+                      <span style={{ fontSize: 11, fontWeight: 700 }}>Day {i + 1}</span>
+                      <span style={{ fontSize: 10, opacity: 0.8 }}>{dateLabel}</span>
+                      {isToday && <span style={{ fontSize: 8, color: 'var(--accent-cyan)', fontWeight: 700, marginTop: 1 }}>TODAY</span>}
+                    </button>
+                  )
+                })}
+              </div>
+              {dayZeroSelected && (
+                <input
+                  className="input"
+                  type="date"
+                  value={selectedDate}
+                  max={dayBeforeStart ?? undefined}
+                  onChange={e => setSelectedDate(e.target.value)}
+                />
+              )}
+            </>
           ) : (
             <input
               className="input"
