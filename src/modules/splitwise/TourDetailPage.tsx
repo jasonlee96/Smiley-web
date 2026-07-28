@@ -119,7 +119,7 @@ function ParticipantRow({ p, tourId, baseCurrency }: { p: SplitParticipant; tour
   )
 }
 
-function ExpenseRow({ e, baseCurrency }: { e: SplitExpense; baseCurrency: string }) {
+function ExpenseRow({ e, baseCurrency, showDate = false }: { e: SplitExpense; baseCurrency: string; showDate?: boolean }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px',
@@ -134,6 +134,11 @@ function ExpenseRow({ e, baseCurrency }: { e: SplitExpense; baseCurrency: string
       <div style={{ flex: 1 }}>
         <span style={{ fontWeight: 500, fontSize: 14 }}>{e.description}</span>
         <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 8 }}>by {e.participant_name}</span>
+        {showDate && (
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>
+            {new Date(expenseDay(e)).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </span>
+        )}
         {e.category && (
           <span style={{
             marginLeft: 8, fontSize: 11, padding: '1px 7px', borderRadius: 4,
@@ -839,14 +844,21 @@ function ExpensesGrouped({ expenses, baseCurrency, startDate, endDate }: {
     }
   }
 
-  // Group expenses by expense_date (fallback to created_at)
+  // Group expenses by expense_date (fallback to created_at); any date before
+  // startDate collapses into one "Day 0" bucket regardless of its real date
+  const DAY_ZERO_KEY = '__day_zero__'
   const grouped = new Map<string, SplitExpense[]>()
   for (const e of expenses) {
     const day = expenseDay(e)
-    if (!grouped.has(day)) grouped.set(day, [])
-    grouped.get(day)!.push(e)
+    const key = startDate && day < startDate ? DAY_ZERO_KEY : day
+    if (!grouped.has(key)) grouped.set(key, [])
+    grouped.get(key)!.push(e)
   }
-  const sortedDates = [...grouped.keys()].sort((a, b) => a.localeCompare(b))
+  const sortedDates = [...grouped.keys()].sort((a, b) => {
+    if (a === DAY_ZERO_KEY) return -1
+    if (b === DAY_ZERO_KEY) return 1
+    return a.localeCompare(b)
+  })
 
   const toggle = (d: string) => setCollapsed(prev => {
     const next = new Set(prev)
@@ -859,8 +871,11 @@ function ExpensesGrouped({ expenses, baseCurrency, startDate, endDate }: {
       {sortedDates.map(date => {
         const dayExpenses = grouped.get(date)!
         const dayTotal = dayExpenses.reduce((s, e) => s + (e.amount_base ? parseFloat(e.amount_base) : 0), 0)
-        const dayNum = dayMap.get(date)
-        const label = dayNum
+        const isDayZero = date === DAY_ZERO_KEY
+        const dayNum = isDayZero ? null : dayMap.get(date)
+        const label = isDayZero
+          ? 'Day 0 · Pre-Tour'
+          : dayNum
           ? `Day ${dayNum} — ${new Date(date).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' })}`
           : new Date(date).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
         const isCollapsed = collapsed.has(date)
@@ -887,7 +902,7 @@ function ExpensesGrouped({ expenses, baseCurrency, startDate, endDate }: {
             </button>
             {!isCollapsed && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 4 }}>
-                {dayExpenses.map(e => <ExpenseRow key={e.id} e={e} baseCurrency={baseCurrency} />)}
+                {dayExpenses.map(e => <ExpenseRow key={e.id} e={e} baseCurrency={baseCurrency} showDate={isDayZero} />)}
               </div>
             )}
           </div>
