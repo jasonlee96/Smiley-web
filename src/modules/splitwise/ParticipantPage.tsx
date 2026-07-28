@@ -572,10 +572,17 @@ export default function ParticipantPage() {
 
             {/* Day-by-day chart */}
             {expenses.length > 0 && (() => {
+              const startDate = participant.start_date
               const byDate: Record<string, number> = {}
+              let preTourTotal = 0
               for (const e of expenses) {
-                const d = e.created_at.slice(0, 10)
-                byDate[d] = (byDate[d] ?? 0) + parseFloat(e.amount as string)
+                const d = e.expense_date ? e.expense_date.slice(0, 10) : e.created_at.slice(0, 10)
+                const amt = parseFloat(e.amount as string)
+                if (startDate && d < startDate) {
+                  preTourTotal += amt
+                } else {
+                  byDate[d] = (byDate[d] ?? 0) + amt
+                }
               }
               const dayData = Object.entries(byDate)
                 .sort(([a], [b]) => a.localeCompare(b))
@@ -584,6 +591,9 @@ export default function ParticipantPage() {
                   total: parseFloat(total.toFixed(2)),
                   date,
                 }))
+              if (preTourTotal > 0) {
+                dayData.unshift({ label: 'D0', total: parseFloat(preTourTotal.toFixed(2)), date: 'Pre-Tour' })
+              }
               if (dayData.length < 2) return null
               const maxVal = Math.max(...dayData.map(d => d.total), 0.01)
               const currency = expenses[0]?.currency ?? base
