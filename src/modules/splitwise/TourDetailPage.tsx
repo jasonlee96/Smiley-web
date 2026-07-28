@@ -844,13 +844,16 @@ function ExpensesGrouped({ expenses, baseCurrency, startDate, endDate }: {
     }
   }
 
+  // Normalize startDate to YYYY-MM-DD for comparison (API returns full ISO timestamp)
+  const startKey = startDate ? new Date(startDate).toISOString().slice(0, 10) : null
+
   // Group expenses by expense_date (fallback to created_at); any date before
   // startDate collapses into one "Day 0" bucket regardless of its real date
   const DAY_ZERO_KEY = '__day_zero__'
   const grouped = new Map<string, SplitExpense[]>()
   for (const e of expenses) {
     const day = expenseDay(e)
-    const key = startDate && day < startDate ? DAY_ZERO_KEY : day
+    const key = startKey && day < startKey ? DAY_ZERO_KEY : day
     if (!grouped.has(key)) grouped.set(key, [])
     grouped.get(key)!.push(e)
   }
