@@ -114,14 +114,8 @@ export const splitwiseApi = {
 
 import axios from 'axios'
 
-// Always derive API base from the current hostname so participant links work
-// regardless of whether accessed via Tailscale, public IP, or localhost.
-// Deliberately ignores VITE_API_BASE_URL (that's for the authenticated admin
-// client only) — a non-empty env var here would make this fallback dead code.
-const publicApiBase = `http://${window.location.hostname}:3100`
-
 const publicClient = axios.create({
-  baseURL: publicApiBase,
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://ip-172-31-2-167.tail9203bc.ts.net/api',
   timeout: 15000,
 })
 

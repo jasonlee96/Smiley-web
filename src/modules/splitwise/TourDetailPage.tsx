@@ -8,16 +8,10 @@ import Spinner from '../../components/Spinner'
 import { splitwiseApi, type SplitParticipant, type SplitExpense, type TourDetail } from '../../api/splitwise'
 import { TourFormModal } from './SplitWisePage'
 
-// resolved at runtime from the backend
-let _publicBase: string | null = null;
+const PUBLIC_APP_ORIGIN = 'https://jasonlee96.github.io/Smiley-web'
+
 function usePublicBase() {
-  const { data } = useQuery({
-    queryKey: ['split-server-ip'],
-    queryFn: splitwiseApi.getServerIp,
-    staleTime: Infinity,
-  })
-  if (data?.ip) _publicBase = `http://${data.ip}:4000`
-  return _publicBase ?? window.location.origin
+  return PUBLIC_APP_ORIGIN
 }
 
 const SUGGESTED_CATEGORIES = ['Food', 'Transport', 'Accommodation', 'Activities', 'Shopping', 'Drinks', 'Tickets', 'Misc']
@@ -79,7 +73,7 @@ function ParticipantRow({ p, tourId, baseCurrency }: { p: SplitParticipant; tour
     mutationFn: () => splitwiseApi.removeParticipant(tourId, p.id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['split-tour', tourId] }),
   })
-  const url = `${publicBase}/split/${p.token}`
+  const url = `${publicBase}/#/public/split/${p.token}`
   const paid = parseFloat(p.total_paid_base ?? '0')
 
   return (
@@ -1087,7 +1081,7 @@ export default function TourDetailPage() {
                 {newPax.trim() && (
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 2 }}>
                     Link will be: <span style={{ color: 'var(--accent-cyan)', fontFamily: 'monospace' }}>
-                      /split/{newPax.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')}
+                      /public/split/{newPax.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')}
                     </span>
                   </div>
                 )}
