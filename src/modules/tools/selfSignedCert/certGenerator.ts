@@ -31,7 +31,7 @@ export function parseSans(raw: string): { dnsNames: string[]; ips: string[] } {
 
 function generateKeyPair() {
   return new Promise<forge.pki.rsa.KeyPair>((resolve, reject) => {
-    forge.pki.rsa.generateKeyPair({ bits: 2048, workers: -1 }, (err, keypair) => {
+    forge.pki.rsa.generateKeyPair({ bits: 2048, workerScript: '/vendor/prime.worker.js' }, (err, keypair) => {
       if (err) reject(err)
       else resolve(keypair)
     })

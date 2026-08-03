@@ -126,10 +126,13 @@ export default function SelfSignedCertPage() {
               value={result.certPem}
               style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, resize: 'vertical' }}
             />
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <CopyButton text={result.certPem} />
               <button className="btn-ghost" onClick={() => downloadText(result.certPem, 'cert.pem')} type="button">
-                <Download size={13} /> Download cert.pem
+                <Download size={13} /> cert.pem
+              </button>
+              <button className="btn-ghost" onClick={() => downloadText(result.certPem, 'cert.crt')} type="button">
+                <Download size={13} /> cert.crt
               </button>
             </div>
           </GlassCard>
@@ -146,10 +149,13 @@ export default function SelfSignedCertPage() {
               value={result.keyPem}
               style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, resize: 'vertical' }}
             />
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <CopyButton text={result.keyPem} />
               <button className="btn-ghost" onClick={() => downloadText(result.keyPem, 'key.pem')} type="button">
-                <Download size={13} /> Download key.pem
+                <Download size={13} /> key.pem
+              </button>
+              <button className="btn-ghost" onClick={() => downloadText(result.keyPem, 'key.key')} type="button">
+                <Download size={13} /> key.key
               </button>
             </div>
           </GlassCard>
