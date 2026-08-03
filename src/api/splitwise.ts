@@ -93,9 +93,6 @@ export const splitwiseApi = {
   getRates: (base: string) =>
     client.get<{ base: string; rates: Record<string, number> }>(`/splitwise/rates/${base}`).then(r => r.data),
 
-  getServerIp: () =>
-    client.get<{ ip: string }>('/splitwise/server-ip').then(r => r.data),
-
   listSettlements: (tourId: number) =>
     client.get<SplitSettlement[]>(`/splitwise/tours/${tourId}/settlements`).then(r => r.data),
 

@@ -52,12 +52,12 @@ export default function QuantPage() {
     : `$${totalPnlFromTrades.toFixed(2)}`
 
   const cards = [
-    { label: 'Signals', desc: "Today's BUY/SELL signals", to: '/quant/signals', icon: TrendingUp },
-    { label: 'Positions', desc: 'Open paper positions', to: '/quant/positions', icon: Briefcase },
-    { label: 'Backtest', desc: 'Run historical simulation', to: '/quant/backtest', icon: BarChart2 },
-    { label: 'Universe', desc: 'Stock watchlist', to: '/quant/universe', icon: Database },
-    { label: 'Jobs', desc: 'Scheduler job status', to: '/quant/jobs', icon: Activity },
-    { label: 'Settings', desc: 'Credentials & container control', to: '/quant/settings', icon: Settings2 },
+    { label: 'Signals', desc: "Today's BUY/SELL signals", to: '/internal/quant/signals', icon: TrendingUp },
+    { label: 'Positions', desc: 'Open paper positions', to: '/internal/quant/positions', icon: Briefcase },
+    { label: 'Backtest', desc: 'Run historical simulation', to: '/internal/quant/backtest', icon: BarChart2 },
+    { label: 'Universe', desc: 'Stock watchlist', to: '/internal/quant/universe', icon: Database },
+    { label: 'Jobs', desc: 'Scheduler job status', to: '/internal/quant/jobs', icon: Activity },
+    { label: 'Settings', desc: 'Credentials & container control', to: '/internal/quant/settings', icon: Settings2 },
   ]
 
   const todayPnlColor = todayPnl == null

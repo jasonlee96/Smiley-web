@@ -17,13 +17,13 @@ export const TOOLS: ToolEntry[] = [
     label: 'Base64 ↔ Image',
     description: 'Decode base64/data URIs to an image preview, or encode an image to base64.',
     icon: Image,
-    path: '/tools/base64-image',
+    path: '/internal/tools/base64-image',
   },
   {
     id: 'self-signed-cert',
     label: 'Self-Signed Certificate',
     description: 'Generate an RSA-2048 self-signed cert/key pair for local HTTPS testing.',
     icon: ShieldCheck,
-    path: '/tools/self-signed-cert',
+    path: '/internal/tools/self-signed-cert',
   },
 ]

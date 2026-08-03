@@ -47,7 +47,7 @@ function AppRoutes() {
   }, [])
 
   // Public pages — no PIN required
-  if (location.pathname.startsWith('/public/')) {
+  if (location.pathname.startsWith('/public/') || location.pathname === '/public') {
     return (
       <Routes>
         <Route path="/public/rates" element={<PublicRatesPage />} />
@@ -97,6 +97,7 @@ function AppRoutes() {
         <Route path="/internal/tools" element={<ToolsHubPage />} />
         <Route path="/internal/tools/base64-image" element={<Base64ImagePage />} />
         <Route path="/internal/tools/self-signed-cert" element={<SelfSignedCertPage />} />
+        <Route path="*" element={<Navigate to="/internal/todos" replace />} />
       </Routes>
     </Layout>
   )

@@ -8,10 +8,8 @@ import Spinner from '../../components/Spinner'
 import { splitwiseApi, type SplitParticipant, type SplitExpense, type TourDetail } from '../../api/splitwise'
 import { TourFormModal } from './SplitWisePage'
 
-const PUBLIC_APP_ORIGIN = 'https://jasonlee96.github.io/Smiley-web'
-
 function usePublicBase() {
-  return PUBLIC_APP_ORIGIN
+  return window.location.origin
 }
 
 const SUGGESTED_CATEGORIES = ['Food', 'Transport', 'Accommodation', 'Activities', 'Shopping', 'Drinks', 'Tickets', 'Misc']
