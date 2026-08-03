@@ -1,8 +1,9 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { TransferPrefsProvider } from './context/TransferPrefs'
 import Layout from './components/Layout'
 import PinEntry from './components/PinEntry'
+import PublicRatesPage from './modules/rates/PublicRatesPage'
 import TodosPage from './modules/todos/TodosPage'
 import RatesPage from './modules/rates/RatesPage'
 import EC2Page from './modules/ec2/EC2Page'
@@ -30,6 +31,11 @@ import MonthDetailPage from './modules/expenses/MonthDetailPage'
 import CategoriesPage from './modules/expenses/CategoriesPage'
 import ImportPage from './modules/expenses/ImportPage'
 
+function LegacySplitRedirect() {
+  const { token } = useParams()
+  return <Navigate to={`/public/split/${token}`} replace />
+}
+
 function AppRoutes() {
   const location = useLocation()
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('smiley_token'))
@@ -40,11 +46,21 @@ function AppRoutes() {
     return () => window.removeEventListener('token-cleared', handler)
   }, [])
 
-  // Public participant pages bypass PIN
+  // Public pages — no PIN required
+  if (location.pathname.startsWith('/public/')) {
+    return (
+      <Routes>
+        <Route path="/public/rates" element={<PublicRatesPage />} />
+        <Route path="/public/split/:token" element={<ParticipantPage />} />
+      </Routes>
+    )
+  }
+
+  // Legacy participant links shared before the /public prefix existed
   if (location.pathname.startsWith('/split/')) {
     return (
       <Routes>
-        <Route path="/split/:token" element={<ParticipantPage />} />
+        <Route path="/split/:token" element={<LegacySplitRedirect />} />
       </Routes>
     )
   }
@@ -54,32 +70,33 @@ function AppRoutes() {
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<Navigate to="/todos" replace />} />
-        <Route path="/todos" element={<TodosPage />} />
-        <Route path="/rates" element={<RatesPage />} />
-        <Route path="/net-worth" element={<NetWorthPage />} />
-        <Route path="/expenses" element={<ExpensesHubPage />} />
-        <Route path="/expenses/categories" element={<CategoriesPage />} />
-        <Route path="/expenses/import" element={<ImportPage />} />
-        <Route path="/expenses/:year/:month" element={<MonthDetailPage />} />
-        <Route path="/ec2" element={<EC2Page />} />
-        <Route path="/jobs" element={<JobsPage />} />
-        <Route path="/weather" element={<WeatherPage />} />
-        <Route path="/mail" element={<MailPage />} />
-        <Route path="/trips" element={<TripsPage />} />
-        <Route path="/trips/:id" element={<TripDetailPage />} />
-        <Route path="/splitwise" element={<SplitWisePage />} />
-        <Route path="/splitwise/:id" element={<TourDetailPage />} />
-        <Route path="/quant" element={<QuantPage />} />
-        <Route path="/quant/signals" element={<SignalsPage />} />
-        <Route path="/quant/positions" element={<PositionsPage />} />
-        <Route path="/quant/backtest" element={<BacktestPage />} />
-        <Route path="/quant/universe" element={<UniversePage />} />
-        <Route path="/quant/jobs" element={<QuantJobsPage />} />
-        <Route path="/quant/settings" element={<SettingsPage />} />
-        <Route path="/tools" element={<ToolsHubPage />} />
-        <Route path="/tools/base64-image" element={<Base64ImagePage />} />
-        <Route path="/tools/self-signed-cert" element={<SelfSignedCertPage />} />
+        <Route path="/" element={<Navigate to="/internal/todos" replace />} />
+        <Route path="/internal" element={<Navigate to="/internal/todos" replace />} />
+        <Route path="/internal/todos" element={<TodosPage />} />
+        <Route path="/internal/rates" element={<RatesPage />} />
+        <Route path="/internal/net-worth" element={<NetWorthPage />} />
+        <Route path="/internal/expenses" element={<ExpensesHubPage />} />
+        <Route path="/internal/expenses/categories" element={<CategoriesPage />} />
+        <Route path="/internal/expenses/import" element={<ImportPage />} />
+        <Route path="/internal/expenses/:year/:month" element={<MonthDetailPage />} />
+        <Route path="/internal/ec2" element={<EC2Page />} />
+        <Route path="/internal/jobs" element={<JobsPage />} />
+        <Route path="/internal/weather" element={<WeatherPage />} />
+        <Route path="/internal/mail" element={<MailPage />} />
+        <Route path="/internal/trips" element={<TripsPage />} />
+        <Route path="/internal/trips/:id" element={<TripDetailPage />} />
+        <Route path="/internal/splitwise" element={<SplitWisePage />} />
+        <Route path="/internal/splitwise/:id" element={<TourDetailPage />} />
+        <Route path="/internal/quant" element={<QuantPage />} />
+        <Route path="/internal/quant/signals" element={<SignalsPage />} />
+        <Route path="/internal/quant/positions" element={<PositionsPage />} />
+        <Route path="/internal/quant/backtest" element={<BacktestPage />} />
+        <Route path="/internal/quant/universe" element={<UniversePage />} />
+        <Route path="/internal/quant/jobs" element={<QuantJobsPage />} />
+        <Route path="/internal/quant/settings" element={<SettingsPage />} />
+        <Route path="/internal/tools" element={<ToolsHubPage />} />
+        <Route path="/internal/tools/base64-image" element={<Base64ImagePage />} />
+        <Route path="/internal/tools/self-signed-cert" element={<SelfSignedCertPage />} />
       </Routes>
     </Layout>
   )
@@ -88,9 +105,9 @@ function AppRoutes() {
 export default function App() {
   return (
     <TransferPrefsProvider>
-      <BrowserRouter>
+      <HashRouter>
         <AppRoutes />
-      </BrowserRouter>
+      </HashRouter>
     </TransferPrefsProvider>
   )
 }
