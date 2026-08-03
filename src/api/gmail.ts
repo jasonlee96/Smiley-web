@@ -29,7 +29,8 @@ export interface AttentionEmail {
   reason: string
 }
 
-export const GMAIL_AUTH_URL = 'https://ip-172-31-2-167.tail9203bc.ts.net/api/gmail/auth'
+const gmailApiBase = import.meta.env.VITE_API_BASE_URL || 'https://ip-172-31-2-167.tail9203bc.ts.net/api'
+export const GMAIL_AUTH_URL = `${gmailApiBase}/gmail/auth`
 
 export const gmailApi = {
   getDigest: () =>
