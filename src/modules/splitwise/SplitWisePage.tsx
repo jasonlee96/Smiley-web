@@ -190,7 +190,7 @@ function TourCard({ tour }: { tour: SplitTour }) {
       <GlassCard
         className="hover-lift"
         style={{ padding: '20px 24px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 16 }}
-        onClick={() => navigate(`/splitwise/${tour.id}`)}
+        onClick={() => navigate(`/internal/splitwise/${tour.id}`)}
       >
         <div style={{
           width: 44, height: 44, borderRadius: 10, flexShrink: 0,

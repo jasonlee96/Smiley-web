@@ -948,7 +948,7 @@ export default function TourDetailPage() {
 
   const deleteTour = useMutation({
     mutationFn: () => splitwiseApi.deleteTour(tourId),
-    onSuccess: () => navigate('/splitwise'),
+    onSuccess: () => navigate('/internal/splitwise'),
   })
 
   if (isLoading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner /></div>
@@ -966,7 +966,7 @@ export default function TourDetailPage() {
     <div>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-        <button className="btn-ghost" style={{ padding: '6px 10px' }} onClick={() => navigate('/splitwise')}>
+        <button className="btn-ghost" style={{ padding: '6px 10px' }} onClick={() => navigate('/internal/splitwise')}>
           <ArrowLeft size={16} />
         </button>
         <div style={{ flex: 1 }}>

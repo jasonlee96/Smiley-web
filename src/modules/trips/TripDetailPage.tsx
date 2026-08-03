@@ -71,7 +71,7 @@ export default function TripDetailPage() {
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Back + actions row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <button className="btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }} onClick={() => navigate('/trips')}>
+        <button className="btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }} onClick={() => navigate('/internal/trips')}>
           <ChevronLeft size={16} /> Trips
         </button>
         <div style={{ display: 'flex', gap: 8 }}>

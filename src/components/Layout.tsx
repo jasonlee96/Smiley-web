@@ -7,21 +7,21 @@ import {
 import { useFxRecommendation } from '../hooks/useRates'
 
 const PRIMARY_NAV = [
-  { to: '/todos',      label: 'Todos',     icon: CheckSquare },
-  { to: '/rates',      label: 'Rates',     icon: TrendingUp },
-  { to: '/net-worth',  label: 'Net Worth', icon: Wallet },
-  { to: '/expenses',   label: 'Expenses',  icon: Receipt },
+  { to: '/internal/todos',      label: 'Todos',     icon: CheckSquare },
+  { to: '/internal/rates',      label: 'Rates',     icon: TrendingUp },
+  { to: '/internal/net-worth',  label: 'Net Worth', icon: Wallet },
+  { to: '/internal/expenses',   label: 'Expenses',  icon: Receipt },
 ]
 
 const OVERFLOW_NAV = [
-  { to: '/ec2',        label: 'EC2',      icon: Server },
-  { to: '/jobs',       label: 'Jobs',     icon: Activity },
-  { to: '/weather',    label: 'Weather',  icon: Cloud },
-  { to: '/mail',       label: 'Mail',     icon: Mail },
-  { to: '/trips',      label: 'Trips',    icon: Plane },
-  { to: '/splitwise',  label: 'Splitter', icon: SplitSquareVertical },
-  { to: '/quant',      label: 'Quant',    icon: BarChart2 },
-  { to: '/tools',      label: 'Tools',    icon: Wrench },
+  { to: '/internal/ec2',        label: 'EC2',      icon: Server },
+  { to: '/internal/jobs',       label: 'Jobs',     icon: Activity },
+  { to: '/internal/weather',    label: 'Weather',  icon: Cloud },
+  { to: '/internal/mail',       label: 'Mail',     icon: Mail },
+  { to: '/internal/trips',      label: 'Trips',    icon: Plane },
+  { to: '/internal/splitwise',  label: 'Splitter', icon: SplitSquareVertical },
+  { to: '/internal/quant',      label: 'Quant',    icon: BarChart2 },
+  { to: '/internal/tools',      label: 'Tools',    icon: Wrench },
 ]
 
 const ALL_NAV = [...PRIMARY_NAV, ...OVERFLOW_NAV]

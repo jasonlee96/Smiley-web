@@ -53,7 +53,7 @@ export default function ExpensesHubPage() {
             )}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px' }} onClick={() => navigate('/expenses/import')}>
+            <button className="btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px' }} onClick={() => navigate('/internal/expenses/import')}>
               <Upload size={14} /> Import
             </button>
             <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px' }} onClick={() => setShowEntryForm(true)}>
@@ -110,7 +110,7 @@ export default function ExpensesHubPage() {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Month History</p>
-        <button className="btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px' }} onClick={() => navigate('/expenses/categories')}>
+        <button className="btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px' }} onClick={() => navigate('/internal/expenses/categories')}>
           <Settings size={13} /> Categories
         </button>
       </div>
@@ -129,7 +129,7 @@ export default function ExpensesHubPage() {
             return (
               <div
                 key={m.id}
-                onClick={() => navigate(`/expenses/${m.year}/${m.month}`)}
+                onClick={() => navigate(`/internal/expenses/${m.year}/${m.month}`)}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   padding: '12px', cursor: 'pointer',

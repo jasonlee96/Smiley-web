@@ -78,7 +78,7 @@ export default function PendingStatementsCard() {
                   className="btn-primary"
                   style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', fontSize: 12 }}
                   disabled={dismissing}
-                  onClick={() => navigate(`/expenses/import?pending=${s.id}`)}
+                  onClick={() => navigate(`/internal/expenses/import?pending=${s.id}`)}
                 >
                   {ready ? <Download size={13} /> : <Upload size={13} />}
                   {ready ? 'Extract & Import' : 'Upload PDF'}

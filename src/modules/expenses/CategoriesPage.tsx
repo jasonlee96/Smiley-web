@@ -35,7 +35,7 @@ export default function CategoriesPage() {
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <button className="btn-ghost" style={{ padding: '6px 8px' }} onClick={() => navigate('/expenses')}>
+        <button className="btn-ghost" style={{ padding: '6px 8px' }} onClick={() => navigate('/internal/expenses')}>
           <ChevronLeft size={16} />
         </button>
         <h1 style={{ fontFamily: 'Syne', fontWeight: 800, fontSize: 24, letterSpacing: '-0.03em' }}>Expense Categories</h1>

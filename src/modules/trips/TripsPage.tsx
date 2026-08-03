@@ -56,7 +56,7 @@ function TripCard({ trip }: { trip: TripListItem }) {
   return (
     <GlassCard
       style={{ padding: '14px 16px', display: 'flex', gap: 14, alignItems: 'flex-start', cursor: 'pointer', marginBottom: 8 }}
-      onClick={() => navigate(`/trips/${trip.id}`)}
+      onClick={() => navigate(`/internal/trips/${trip.id}`)}
     >
       <div style={{
         width: 48, height: 48, borderRadius: 10, flexShrink: 0,
@@ -172,7 +172,7 @@ export default function TripsPage() {
       {showForm && (
         <TripFormModal
           onClose={() => setShowForm(false)}
-          onCreated={(id) => { setShowForm(false); navigate(`/trips/${id}`) }}
+          onCreated={(id) => { setShowForm(false); navigate(`/internal/trips/${id}`) }}
         />
       )}
     </div>
