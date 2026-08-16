@@ -6,7 +6,7 @@ import GlassCard from '../../components/GlassCard'
 import Spinner from '../../components/Spinner'
 import { splitwiseApi, type SplitTour } from '../../api/splitwise'
 
-const COMMON_CURRENCIES = ['SGD', 'MYR', 'USD', 'EUR', 'GBP', 'JPY', 'AUD', 'THB', 'IDR', 'HKD']
+const COMMON_CURRENCIES = ['SGD', 'MYR', 'USD', 'EUR', 'GBP', 'JPY', 'AUD', 'THB', 'IDR', 'HKD', 'CHF', 'HUF']
 const SUGGESTED_CATEGORIES = ['Food', 'Transport', 'Accommodation', 'Activities', 'Shopping', 'Drinks', 'Tickets', 'Misc']
 
 function fmtDate(d: string | null) {
