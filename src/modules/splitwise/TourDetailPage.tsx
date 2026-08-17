@@ -9,7 +9,9 @@ import { splitwiseApi, type SplitParticipant, type SplitExpense, type TourDetail
 import { TourFormModal } from './SplitWisePage'
 
 function usePublicBase() {
-  return window.location.origin
+  // import.meta.env.BASE_URL matches the Vite `base` config (e.g. '/' or '/Smiley-web/')
+  // so links are correct whether hosted on GitHub Pages or served from nginx root.
+  return window.location.origin + import.meta.env.BASE_URL.replace(/\/$/, '')
 }
 
 const SUGGESTED_CATEGORIES = ['Food', 'Transport', 'Accommodation', 'Activities', 'Shopping', 'Drinks', 'Tickets', 'Misc']

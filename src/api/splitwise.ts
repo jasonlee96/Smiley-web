@@ -112,7 +112,9 @@ export const splitwiseApi = {
 import axios from 'axios'
 
 const publicClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://ip-172-31-2-167.tail9203bc.ts.net/api',
+  // Pax devices are not on the tailnet, so this must use the Funnel endpoint
+  // (publicly reachable) rather than the tailnet-only `tailscale serve` host.
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://ip-172-31-2-167.tail9203bc.ts.net:8443',
   timeout: 15000,
 })
 
