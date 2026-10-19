@@ -3,6 +3,7 @@ import { useTodos } from '../../hooks/useTodos'
 import TodoItem from './TodoItem'
 import AddTodoForm from './AddTodoForm'
 import WeekCalendar from './WeekCalendar'
+import UpcomingCalendar from './UpcomingCalendar'
 import GlassCard from '../../components/GlassCard'
 import Spinner from '../../components/Spinner'
 import { CheckSquare, Zap, ChevronDown, ChevronUp, RefreshCw, List, CalendarDays } from 'lucide-react'
@@ -145,6 +146,9 @@ export default function TodosPage() {
           </GlassCard>
         ))}
       </div>
+
+      {/* Apple Calendar lookahead (hidden when iCloud isn't configured) */}
+      <UpcomingCalendar />
 
       {/* Add form */}
       {showAdd && (
