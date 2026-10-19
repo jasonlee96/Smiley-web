@@ -147,7 +147,7 @@ export default function TodosPage() {
         ))}
       </div>
 
-      {/* Apple Calendar lookahead (hidden when iCloud isn't configured) */}
+      {/* iCloud + Google calendar lookahead (hidden when neither is configured) */}
       <UpcomingCalendar />
 
       {/* Add form */}

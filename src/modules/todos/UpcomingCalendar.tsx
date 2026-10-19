@@ -43,9 +43,9 @@ export default function UpcomingCalendar() {
       </div>
 
       {isLoading ? (
-        <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading Apple Calendar…</div>
+        <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading calendars…</div>
       ) : isError ? (
-        <div style={{ color: 'var(--accent-red)', fontSize: 13 }}>Couldn't reach Apple Calendar.</div>
+        <div style={{ color: 'var(--accent-red)', fontSize: 13 }}>Couldn't reach your calendars.</div>
       ) : events.length === 0 ? (
         <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Nothing scheduled.</div>
       ) : (
