@@ -7,6 +7,9 @@ import type {
   SnapshotHistoryItem,
   TradingAlert,
   TradingMonitorSettings,
+  DcaRankedItem,
+  AccumulationsResponse,
+  AccumulationEntry,
 } from '../types/trading'
 
 export const tradingApi = {
@@ -97,4 +100,27 @@ export const tradingApi = {
         { params },
       )
       .then((r) => r.data),
+
+  getDcaRanking: () =>
+    client
+      .get<DcaRankedItem[]>('/trading/dca-ranking', { timeout: 35000 })
+      .then((r) => r.data),
+
+  getAccumulations: () =>
+    client.get<AccumulationsResponse>('/trading/accumulations').then((r) => r.data),
+
+  addAccumulation: (payload: {
+    symbol: string
+    asset_type?: AssetType
+    currency?: string
+    units: number
+    price_per_unit: number
+    total_amount?: number
+    lot_label?: string
+    bought_at?: string
+    notes?: string
+  }) => client.post<AccumulationEntry>('/trading/accumulations', payload).then((r) => r.data),
+
+  deleteAccumulation: (id: number) =>
+    client.delete<{ ok: boolean }>(`/trading/accumulations/${id}`).then((r) => r.data),
 }

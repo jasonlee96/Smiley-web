@@ -21,6 +21,7 @@ import TradingChartPanel from './TradingChartPanel'
 import IndicatorMatrix from './IndicatorMatrix'
 import AiThesisCard from './AiThesisCard'
 import TradingAlertModal from './TradingAlertModal'
+import MonthlyDcaTab from './MonthlyDcaTab'
 import {
   useTradingWatchlist,
   useTradingSnapshot,
@@ -69,6 +70,7 @@ function signalMeta(sig: TechnicalSignal) {
 }
 
 export default function TradingPage() {
+  const [activeView, setActiveView] = useState<'monthly_dca' | 'terminal'>('monthly_dca')
   const [tickerInput, setTickerInput] = useState('BTC')
   const [assetTypeHint, setAssetTypeHint] = useState<'auto' | AssetType>('auto')
   const [timeframe, setTimeframe] = useState<Timeframe>('1d')
@@ -265,6 +267,65 @@ export default function TradingPage() {
           </div>
         </div>
 
+        {/* Mode Switcher: Monthly DCA Pick vs Technical Terminal */}
+        <div
+          style={{
+            display: 'inline-flex',
+            alignSelf: 'flex-start',
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border)',
+            borderRadius: 10,
+            padding: 4,
+            gap: 4,
+            flexWrap: 'wrap',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setActiveView('monthly_dca')}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 8,
+              border: activeView === 'monthly_dca' ? '1px solid rgba(16, 185, 129, 0.5)' : '1px solid transparent',
+              background:
+                activeView === 'monthly_dca'
+                  ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(6, 182, 212, 0.16))'
+                  : 'transparent',
+              color: activeView === 'monthly_dca' ? '#34d399' : 'var(--text-secondary)',
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              transition: 'all 0.15s',
+            }}
+          >
+            <span>🎯 Monthly Pick &amp; DCA Portfolio ($100 / 1 Lot)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveView('terminal')}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 8,
+              border: activeView === 'terminal' ? '1px solid var(--border-active)' : '1px solid transparent',
+              background: activeView === 'terminal' ? 'var(--accent-cyan-dim)' : 'transparent',
+              color: activeView === 'terminal' ? 'var(--accent-cyan)' : 'var(--text-secondary)',
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              transition: 'all 0.15s',
+            }}
+          >
+            <span>📈 Technical Terminal &amp; Chart</span>
+          </button>
+        </div>
+
         {/* Search & Fetch Control Bar */}
         <GlassCard style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -367,7 +428,10 @@ export default function TradingPage() {
             {/* Fetch & Analyze CTA */}
             <button
               className="btn-primary"
-              onClick={() => handleRunFetchAndAnalyze(undefined, undefined, undefined, false)}
+              onClick={() => {
+                setActiveView('terminal')
+                handleRunFetchAndAnalyze(undefined, undefined, undefined, false)
+              }}
               disabled={isBusy || !tickerInput.trim()}
               style={{ padding: '8px 18px', fontWeight: 600 }}
             >
@@ -398,6 +462,7 @@ export default function TradingPage() {
                 <button
                   key={q.symbol}
                   onClick={() => {
+                    setActiveView('terminal')
                     setTickerInput(q.symbol)
                     setAssetTypeHint(q.type)
                     handleRunFetchAndAnalyze(q.symbol, q.type, timeframe, false)
@@ -439,7 +504,19 @@ export default function TradingPage() {
         )}
       </div>
 
-      {/* Main Layout: Left Watchlist Rail + Right Analysis Workbench */}
+      {activeView === 'monthly_dca' ? (
+        <MonthlyDcaTab
+          onSelectTickerForTerminal={(sym, tf, at) => {
+            setActiveView('terminal')
+            setTickerInput(sym)
+            setSelectedSymbol(sym)
+            setSelectedAssetType(at)
+            setTimeframe(tf)
+            handleRunFetchAndAnalyze(sym, at, tf, false)
+          }}
+        />
+      ) : (
+      /* Main Layout: Left Watchlist Rail + Right Analysis Workbench */
       <div className="trading-main-grid">
         {/* Left Watchlist Rail */}
         <GlassCard style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
@@ -838,6 +915,7 @@ export default function TradingPage() {
           )}
         </div>
       </div>
+      )}
 
       <TradingAlertModal
         open={alertModalOpen}

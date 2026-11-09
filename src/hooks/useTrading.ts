@@ -45,6 +45,7 @@ export function useAddWatchlist() {
     mutationFn: tradingApi.addToWatchlist,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['trading', 'watchlist'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'dca-ranking'] })
     },
   })
 }
@@ -55,6 +56,7 @@ export function useRemoveWatchlist() {
     mutationFn: tradingApi.removeFromWatchlist,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['trading', 'watchlist'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'dca-ranking'] })
     },
   })
 }
@@ -66,6 +68,8 @@ export function useRefreshWatchlist() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['trading', 'watchlist'] })
       qc.invalidateQueries({ queryKey: ['trading', 'snapshot'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'dca-ranking'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'accumulations'] })
     },
   })
 }
@@ -130,6 +134,43 @@ export function useRunTradingMonitor() {
       qc.invalidateQueries({ queryKey: ['trading', 'watchlist'] })
       qc.invalidateQueries({ queryKey: ['trading', 'alerts'] })
       qc.invalidateQueries({ queryKey: ['trading', 'snapshot'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'dca-ranking'] })
+    },
+  })
+}
+
+export function useDcaRanking() {
+  return useQuery({
+    queryKey: ['trading', 'dca-ranking'],
+    queryFn: tradingApi.getDcaRanking,
+  })
+}
+
+export function useAccumulations() {
+  return useQuery({
+    queryKey: ['trading', 'accumulations'],
+    queryFn: tradingApi.getAccumulations,
+  })
+}
+
+export function useAddAccumulation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: tradingApi.addAccumulation,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trading', 'accumulations'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'dca-ranking'] })
+    },
+  })
+}
+
+export function useDeleteAccumulation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: tradingApi.deleteAccumulation,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trading', 'accumulations'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'dca-ranking'] })
     },
   })
 }

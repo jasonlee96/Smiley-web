@@ -211,3 +211,97 @@ export interface SnapshotHistoryItem {
   ai_bias: 'bullish' | 'bearish' | 'neutral' | null
   fetched_at: string
 }
+
+export interface DcaOpportunity {
+  dca_score: number
+  dca_tier: 'top_buy' | 'accumulate' | 'limit_dip' | 'wait_extended'
+  dca_label: string
+  drawdown_from_high_pct: number
+  dist_sma200_pct: number | null
+  dist_sma50_pct: number | null
+  ideal_dip_price: number
+  deep_value_price: number
+  unit_100_shares: number
+  unit_100_at_dip: number
+  lot_100_cost: number
+  lot_100_at_dip: number
+  reasons: string[]
+}
+
+export interface DcaRankedItem {
+  rank: number
+  watchlist_id: number
+  symbol: string
+  asset_type: AssetType
+  name: string
+  timeframe: Timeframe
+  currency: string
+  exchange: string
+  price: number
+  change_pct: number
+  technical_score: number
+  technical_signal: TechnicalSignal
+  rsi: number | null
+  sma200: number | null
+  sma50: number | null
+  support_s1: number | null
+  period_high: number | null
+  ai_bias: 'bullish' | 'bearish' | 'neutral' | null
+  ai_summary: string | null
+  dca: DcaOpportunity | null
+  holding: {
+    total_units: number
+    total_invested: number
+    avg_cost: number
+    tranche_count: number
+    market_value: number
+    unrealized_pnl: number
+    unrealized_pnl_pct: number
+    below_avg_cost: boolean
+  } | null
+  fetched_at: string | null
+}
+
+export interface AccumulationEntry {
+  id: number
+  symbol: string
+  asset_type: AssetType
+  currency: string
+  units: number
+  price_per_unit: number
+  total_amount: number
+  lot_label: string
+  bought_at: string
+  notes: string | null
+  created_at: string
+}
+
+export interface AccumulationHolding {
+  symbol: string
+  name: string
+  asset_type: AssetType
+  currency: string
+  total_units: number
+  total_invested: number
+  avg_cost: number
+  current_price: number
+  market_value: number
+  unrealized_pnl: number
+  unrealized_pnl_pct: number
+  tranche_count: number
+  last_bought_at: string
+  below_avg_cost: boolean
+}
+
+export interface AccumulationsResponse {
+  totals: {
+    total_invested: number
+    total_market_value: number
+    total_unrealized_pnl: number
+    total_unrealized_pnl_pct: number
+    total_tranches: number
+    holdings_count: number
+  }
+  holdings: AccumulationHolding[]
+  entries: AccumulationEntry[]
+}
