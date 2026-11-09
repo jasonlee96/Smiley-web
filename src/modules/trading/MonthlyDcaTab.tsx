@@ -642,25 +642,61 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
               </div>
 
               {walletData.moomoo.connected ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginTop: '0.1rem' }}>
-                  <div>
-                    <div style={{ fontSize: '0.62rem', color: '#64748b', fontWeight: 700 }}>CASH BALANCE</div>
-                    <div style={{ fontSize: '0.98rem', fontWeight: 900, color: '#f8fafc', fontFamily: 'monospace' }}>
-                      {walletData.moomoo.currency} {fmtPrice(walletData.moomoo.cash)}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: '0.1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+                    <div>
+                      <div style={{ fontSize: '0.62rem', color: '#64748b', fontWeight: 700 }}>CASH BALANCE</div>
+                      <div style={{ fontSize: '0.98rem', fontWeight: 900, color: '#f8fafc', fontFamily: 'monospace' }}>
+                        {walletData.moomoo.currency} {fmtPrice(walletData.moomoo.cash)}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.62rem', color: '#64748b', fontWeight: 700 }}>TOTAL ASSETS</div>
+                      <div style={{ fontSize: '0.98rem', fontWeight: 800, color: '#38bdf8', fontFamily: 'monospace' }}>
+                        {walletData.moomoo.currency} {fmtPrice(walletData.moomoo.total_assets)}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.62rem', color: '#64748b', fontWeight: 700 }}>BUYING POWER</div>
+                      <div style={{ fontSize: '0.98rem', fontWeight: 800, color: '#cbd5e1', fontFamily: 'monospace' }}>
+                        {walletData.moomoo.currency} {fmtPrice(walletData.moomoo.buying_power)}
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: '0.62rem', color: '#64748b', fontWeight: 700 }}>TOTAL ASSETS</div>
-                    <div style={{ fontSize: '0.98rem', fontWeight: 800, color: '#38bdf8', fontFamily: 'monospace' }}>
-                      {walletData.moomoo.currency} {fmtPrice(walletData.moomoo.total_assets)}
+                  {(walletData.moomoo.sg_cash != null || walletData.moomoo.us_cash != null) && (
+                    <div
+                      style={{
+                        fontSize: '0.68rem',
+                        color: '#94a3b8',
+                        borderTop: '1px solid rgba(51,65,85,0.6)',
+                        paddingTop: '0.35rem',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '0.65rem',
+                      }}
+                    >
+                      {walletData.moomoo.sg_cash != null && (
+                        <span>
+                          SG Cash: <strong style={{ color: '#e2e8f0' }}>SGD {fmtPrice(walletData.moomoo.sg_cash)}</strong>
+                        </span>
+                      )}
+                      {walletData.moomoo.us_cash != null && (
+                        <span>
+                          US Cash: <strong style={{ color: '#e2e8f0' }}>USD {fmtPrice(walletData.moomoo.us_cash)}</strong>
+                        </span>
+                      )}
+                      {walletData.moomoo.sgd_assets != null && walletData.moomoo.sgd_assets > 0 && (
+                        <span>
+                          SGX Assets: <strong style={{ color: '#38bdf8' }}>SGD {fmtPrice(walletData.moomoo.sgd_assets)}</strong>
+                        </span>
+                      )}
+                      {walletData.moomoo.usd_assets != null && walletData.moomoo.usd_assets > 0 && (
+                        <span>
+                          US Assets: <strong style={{ color: '#38bdf8' }}>USD {fmtPrice(walletData.moomoo.usd_assets)}</strong>
+                        </span>
+                      )}
                     </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.62rem', color: '#64748b', fontWeight: 700 }}>BUYING POWER</div>
-                    <div style={{ fontSize: '0.98rem', fontWeight: 800, color: '#cbd5e1', fontFamily: 'monospace' }}>
-                      {walletData.moomoo.currency} {fmtPrice(walletData.moomoo.buying_power)}
-                    </div>
-                  </div>
+                  )}
                 </div>
               ) : (
                 <div style={{ fontSize: '0.73rem', color: '#94a3b8', lineHeight: 1.4 }}>

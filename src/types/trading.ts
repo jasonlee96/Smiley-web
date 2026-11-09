@@ -361,6 +361,10 @@ export interface BotWalletResponse {
     total_assets: number | null
     market_val: number | null
     buying_power: number | null
+    us_cash?: number | null
+    sg_cash?: number | null
+    usd_assets?: number | null
+    sgd_assets?: number | null
     error?: string
   }
 }
