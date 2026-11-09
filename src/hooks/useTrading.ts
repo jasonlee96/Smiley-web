@@ -69,3 +69,67 @@ export function useRefreshWatchlist() {
     },
   })
 }
+
+export function useUpdateWatchlistItem() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: Parameters<typeof tradingApi.updateWatchlistItem>[1] }) =>
+      tradingApi.updateWatchlistItem(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trading', 'watchlist'] })
+    },
+  })
+}
+
+export function useTradingAlerts(limit = 40) {
+  return useQuery({
+    queryKey: ['trading', 'alerts', limit],
+    queryFn: () => tradingApi.getAlerts(limit),
+    refetchInterval: 60000,
+  })
+}
+
+export function useMarkTradingAlertsRead() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: tradingApi.markAlertsRead,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trading', 'alerts'] })
+    },
+  })
+}
+
+export function useTradingSettings() {
+  return useQuery({
+    queryKey: ['trading', 'settings'],
+    queryFn: tradingApi.getSettings,
+  })
+}
+
+export function useSaveTradingSettings() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: tradingApi.saveSettings,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trading', 'settings'] })
+    },
+  })
+}
+
+export function useTestTradingSlack() {
+  return useMutation({
+    mutationFn: tradingApi.testSlack,
+  })
+}
+
+export function useRunTradingMonitor() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: tradingApi.runMonitorNow,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trading', 'watchlist'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'alerts'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'snapshot'] })
+    },
+  })
+}

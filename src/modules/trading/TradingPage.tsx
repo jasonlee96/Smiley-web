@@ -11,12 +11,16 @@ import {
   Sparkles,
   AlertCircle,
   BarChart2,
+  Bell,
+  Target,
+  Slack,
 } from 'lucide-react'
 import GlassCard from '../../components/GlassCard'
 import Spinner from '../../components/Spinner'
 import TradingChartPanel from './TradingChartPanel'
 import IndicatorMatrix from './IndicatorMatrix'
 import AiThesisCard from './AiThesisCard'
+import TradingAlertModal from './TradingAlertModal'
 import {
   useTradingWatchlist,
   useTradingSnapshot,
@@ -25,6 +29,7 @@ import {
   useAddWatchlist,
   useRemoveWatchlist,
   useRefreshWatchlist,
+  useTradingAlerts,
 } from '../../hooks/useTrading'
 import type { AssetType, Timeframe, TechnicalSignal, TradingSnapshot } from '../../types/trading'
 
@@ -72,8 +77,12 @@ export default function TradingPage() {
   const [wlFilter, setWlFilter] = useState<'all' | 'crypto' | 'equity'>('all')
   const [activeSnapshot, setActiveSnapshot] = useState<TradingSnapshot | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [alertModalOpen, setAlertModalOpen] = useState(false)
+  const [alertModalTab, setAlertModalTab] = useState<'alerts' | 'targets' | 'settings'>('alerts')
 
   const watchlistQ = useTradingWatchlist()
+  const alertsQ = useTradingAlerts(40)
+  const unreadAlerts = alertsQ.data?.unread_count ?? 0
   const snapshotQ = useTradingSnapshot(selectedSymbol, timeframe, selectedAssetType)
   const fetchMut = useFetchTicker()
   const analyzeMut = useAnalyzeTicker()
@@ -203,6 +212,56 @@ export default function TradingPage() {
             <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>
               Live multi-timeframe OHLCV fetch, institutional technical indicator matrix & automated trade setup synthesis
             </p>
+          </div>
+
+          {/* Hourly Monitor, Price Targets & Slack Alert Center Buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              className={unreadAlerts > 0 ? 'btn-primary' : 'btn-ghost'}
+              onClick={() => {
+                setAlertModalTab('alerts')
+                setAlertModalOpen(true)
+              }}
+              style={{ position: 'relative', fontSize: 12, padding: '7px 13px' }}
+            >
+              <Bell size={14} />
+              <span>Alerts {unreadAlerts > 0 ? `(${unreadAlerts})` : ''}</span>
+              {unreadAlerts > 0 && (
+                <span
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: '50%',
+                    background: 'var(--accent-amber)',
+                    animation: 'pulse-dot 1.6s ease-in-out infinite',
+                  }}
+                />
+              )}
+            </button>
+
+            <button
+              className="btn-ghost"
+              onClick={() => {
+                setAlertModalTab('targets')
+                setAlertModalOpen(true)
+              }}
+              style={{ fontSize: 12, padding: '7px 13px' }}
+            >
+              <Target size={14} />
+              <span>Price Targets</span>
+            </button>
+
+            <button
+              className="btn-ghost"
+              onClick={() => {
+                setAlertModalTab('settings')
+                setAlertModalOpen(true)
+              }}
+              style={{ fontSize: 12, padding: '7px 13px' }}
+            >
+              <Slack size={14} />
+              <span>Hourly & Slack</span>
+            </button>
           </div>
         </div>
 
@@ -559,6 +618,27 @@ export default function TradingPage() {
                         </span>
                       )}
                     </div>
+
+                    {(item.target_above != null || item.target_below != null) && (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        fontSize: 10,
+                        fontFamily: 'IBM Plex Mono, monospace',
+                        color: 'var(--text-secondary)',
+                        paddingTop: 4,
+                        borderTop: '1px dashed rgba(255,255,255,0.06)',
+                      }}>
+                        <span>🎯</span>
+                        {item.target_above != null && (
+                          <span style={{ color: 'var(--accent-green)' }}>≥{fmtPrice(item.target_above)}</span>
+                        )}
+                        {item.target_below != null && (
+                          <span style={{ color: 'var(--accent-red)' }}>≤{fmtPrice(item.target_below)}</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -758,6 +838,18 @@ export default function TradingPage() {
           )}
         </div>
       </div>
+
+      <TradingAlertModal
+        open={alertModalOpen}
+        initialTab={alertModalTab}
+        watchlist={watchlist}
+        onClose={() => setAlertModalOpen(false)}
+        onSelectSymbol={(sym) => {
+          setTickerInput(sym)
+          setSelectedSymbol(sym)
+          handleRunFetchAndAnalyze(sym, 'auto', timeframe, false)
+        }}
+      />
     </div>
   )
 }

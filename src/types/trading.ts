@@ -150,6 +150,9 @@ export interface WatchlistItem {
   name: string
   timeframe: Timeframe
   notes: string | null
+  target_above: number | null
+  target_below: number | null
+  alerts_enabled: boolean
   created_at: string
   latest: {
     snapshot_id: number
@@ -166,6 +169,35 @@ export interface WatchlistItem {
     setup_direction: 'long' | 'short' | 'wait' | null
     fetched_at: string
   } | null
+}
+
+export interface TradingAlert {
+  id: number
+  symbol: string
+  asset_type: AssetType
+  timeframe: Timeframe
+  alert_type: 'signal_flip' | 'entry_zone' | 'key_level' | 'rsi_extreme' | 'squeeze_breakout' | 'price_target'
+  severity: 'bullish' | 'bearish' | 'warning' | 'info'
+  title: string
+  message: string
+  price: number
+  read: boolean
+  slack_sent: boolean
+  created_at: string
+}
+
+export interface TradingMonitorSettings {
+  monitor_enabled: boolean
+  slack_enabled: boolean
+  slack_webhook_url: string
+  slack_bot_token: string
+  slack_channel: string
+  slack_webhook_set?: boolean
+  slack_token_set?: boolean
+  notify_signal_flip: boolean
+  notify_key_levels: boolean
+  notify_extreme_rsi: boolean
+  notify_price_targets: boolean
 }
 
 export interface SnapshotHistoryItem {

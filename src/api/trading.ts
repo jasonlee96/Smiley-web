@@ -5,6 +5,8 @@ import type {
   TradingSnapshot,
   WatchlistItem,
   SnapshotHistoryItem,
+  TradingAlert,
+  TradingMonitorSettings,
 } from '../types/trading'
 
 export const tradingApi = {
@@ -26,6 +28,43 @@ export const tradingApi = {
 
   removeFromWatchlist: (id: number) =>
     client.delete<{ ok: boolean }>(`/trading/watchlist/${id}`).then((r) => r.data),
+
+  updateWatchlistItem: (
+    id: number,
+    payload: {
+      target_above?: number | string | null
+      target_below?: number | string | null
+      alerts_enabled?: boolean
+      timeframe?: Timeframe
+      notes?: string | null
+    },
+  ) => client.patch<WatchlistItem>(`/trading/watchlist/${id}`, payload).then((r) => r.data),
+
+  getAlerts: (limit = 40) =>
+    client
+      .get<{ unread_count: number; alerts: TradingAlert[] }>('/trading/alerts', { params: { limit } })
+      .then((r) => r.data),
+
+  markAlertsRead: () =>
+    client.patch<{ ok: boolean }>('/trading/alerts/read').then((r) => r.data),
+
+  getSettings: () =>
+    client.get<TradingMonitorSettings>('/trading/settings').then((r) => r.data),
+
+  saveSettings: (payload: Partial<TradingMonitorSettings>) =>
+    client.put<TradingMonitorSettings>('/trading/settings', payload).then((r) => r.data),
+
+  testSlack: (payload?: Partial<TradingMonitorSettings>) =>
+    client.post<{ ok: boolean; error?: string }>('/trading/settings/test-slack', payload || {}).then((r) => r.data),
+
+  runMonitorNow: () =>
+    client
+      .post<{ scanned: number; alertsTriggered: number; slackSent: number; alerts: TradingAlert[] }>(
+        '/trading/monitor/run',
+        {},
+        { timeout: 60000 },
+      )
+      .then((r) => r.data),
 
   refreshWatchlist: () =>
     client

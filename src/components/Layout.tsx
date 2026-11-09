@@ -5,6 +5,7 @@ import {
   SplitSquareVertical, BarChart2, Wrench, Wallet, Receipt, LayoutGrid, LineChart,
 } from 'lucide-react'
 import { useFxRecommendation } from '../hooks/useRates'
+import { useTradingAlerts } from '../hooks/useTrading'
 
 const PRIMARY_NAV = [
   { to: '/internal/todos',      label: 'Todos',     icon: CheckSquare },
@@ -32,6 +33,8 @@ export default function Layout({ children }: { children: ReactNode }) {
   const currentModule = ALL_NAV.find(n => location.pathname.startsWith(n.to))
   const fxQuery = useFxRecommendation()
   const showTransferDot = fxQuery.data?.recommendation.decision === 'exchange_now'
+  const tradingAlertsQ = useTradingAlerts(10)
+  const showTradingDot = (tradingAlertsQ.data?.unread_count ?? 0) > 0
 
   const [moreOpen, setMoreOpen] = useState(false)
   const moreRef = useRef<HTMLDivElement>(null)
@@ -113,11 +116,11 @@ export default function Layout({ children }: { children: ReactNode }) {
               })}
             >
               <Icon size={15} />
-              {to === '/rates' && showTransferDot && (
+              {((to === '/internal/rates' && showTransferDot) || (to === '/internal/trading' && showTradingDot)) && (
                 <span style={{
                   position: 'absolute', top: 4, right: 4,
                   width: 8, height: 8, borderRadius: '50%',
-                  background: 'var(--accent-green)',
+                  background: to === '/internal/trading' ? 'var(--accent-cyan)' : 'var(--accent-green)',
                   boxShadow: '0 0 0 2px var(--bg-base)',
                   animation: 'pulse-dot 1.6s ease-in-out infinite',
                 }} />
