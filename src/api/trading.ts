@@ -10,6 +10,10 @@ import type {
   DcaRankedItem,
   AccumulationsResponse,
   AccumulationEntry,
+  TradingOrderProposal,
+  ProposalsResponse,
+  BotWalletResponse,
+  MarketDiscoveryItem,
 } from '../types/trading'
 
 export const tradingApi = {
@@ -123,4 +127,69 @@ export const tradingApi = {
 
   deleteAccumulation: (id: number) =>
     client.delete<{ ok: boolean }>(`/trading/accumulations/${id}`).then((r) => r.data),
+
+  getProposals: () =>
+    client.get<ProposalsResponse>('/trading/proposals').then((r) => r.data),
+
+  createProposal: (payload: {
+    symbol: string
+    name?: string
+    asset_type?: AssetType
+    currency?: string
+    qty: number
+    proposed_price: number
+    lot_label?: string
+    trade_env?: 'SIMULATE' | 'REAL'
+    proposed_dca_score?: number
+    proposed_rsi?: number | null
+    proposed_signal?: string
+    proposal_reason?: string
+  }) => client.post<TradingOrderProposal>('/trading/proposals', payload).then((r) => r.data),
+
+  runBotProposalReview: (id?: number) =>
+    client
+      .post<{
+        ok: boolean
+        proposal?: TradingOrderProposal
+        reviewed?: number
+        cancelledStale?: number
+        newlyStaged?: number
+      }>('/trading/proposals/bot-review', id != null ? { id } : {}, { timeout: 45000 })
+      .then((r) => r.data),
+
+  approveProposal: (
+    id: number,
+    payload?: {
+      execute_on_moomoo?: boolean
+      trade_env?: 'SIMULATE' | 'REAL'
+      execution_price?: number
+      qty?: number
+    },
+  ) =>
+    client
+      .post<TradingOrderProposal>(`/trading/proposals/${id}/approve`, payload || {}, { timeout: 25000 })
+      .then((r) => r.data),
+
+  rejectProposal: (id: number) =>
+    client.post<TradingOrderProposal>(`/trading/proposals/${id}/reject`, {}).then((r) => r.data),
+
+  getBotWallet: (trd_env?: 'SIMULATE' | 'REAL') =>
+    client
+      .get<BotWalletResponse>('/trading/bot-wallet', { params: trd_env ? { trd_env } : undefined })
+      .then((r) => r.data),
+
+  updateBotWallet: (allocated_budget: number) =>
+    client
+      .put<{ ok: boolean; budget: BotWalletResponse['budget'] }>('/trading/bot-wallet', {
+        allocated_budget,
+      })
+      .then((r) => r.data),
+
+  getMarketDiscovery: (refresh = false) =>
+    client
+      .get<MarketDiscoveryItem[]>('/trading/market-discovery', {
+        params: refresh ? { refresh: 'true' } : undefined,
+        timeout: 45000,
+      })
+      .then((r) => r.data),
 }

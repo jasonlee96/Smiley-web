@@ -46,6 +46,7 @@ export function useAddWatchlist() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['trading', 'watchlist'] })
       qc.invalidateQueries({ queryKey: ['trading', 'dca-ranking'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'market-discovery'] })
     },
   })
 }
@@ -171,6 +172,103 @@ export function useDeleteAccumulation() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['trading', 'accumulations'] })
       qc.invalidateQueries({ queryKey: ['trading', 'dca-ranking'] })
+    },
+  })
+}
+
+export function useTradingProposals() {
+  return useQuery({
+    queryKey: ['trading', 'proposals'],
+    queryFn: tradingApi.getProposals,
+    refetchInterval: 45000,
+  })
+}
+
+export function useCreateProposal() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: tradingApi.createProposal,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trading', 'proposals'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'bot-wallet'] })
+    },
+  })
+}
+
+export function useBotProposalReview() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: tradingApi.runBotProposalReview,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trading', 'proposals'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'dca-ranking'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'bot-wallet'] })
+    },
+  })
+}
+
+export function useApproveProposal() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: number
+      payload?: Parameters<typeof tradingApi.approveProposal>[1]
+    }) => tradingApi.approveProposal(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trading', 'proposals'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'accumulations'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'dca-ranking'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'bot-wallet'] })
+    },
+  })
+}
+
+export function useRejectProposal() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: tradingApi.rejectProposal,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trading', 'proposals'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'bot-wallet'] })
+    },
+  })
+}
+
+export function useBotWallet(trdEnv?: 'SIMULATE' | 'REAL') {
+  return useQuery({
+    queryKey: ['trading', 'bot-wallet', trdEnv],
+    queryFn: () => tradingApi.getBotWallet(trdEnv),
+    refetchInterval: 45000,
+  })
+}
+
+export function useUpdateBotWallet() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: tradingApi.updateBotWallet,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trading', 'bot-wallet'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'proposals'] })
+    },
+  })
+}
+
+export function useMarketDiscovery() {
+  return useQuery({
+    queryKey: ['trading', 'market-discovery'],
+    queryFn: () => tradingApi.getMarketDiscovery(false),
+  })
+}
+
+export function useRefreshMarketDiscovery() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => tradingApi.getMarketDiscovery(true),
+    onSuccess: (data) => {
+      qc.setQueryData(['trading', 'market-discovery'], data)
     },
   })
 }

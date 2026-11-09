@@ -5,8 +5,24 @@ import {
   useAddAccumulation,
   useDeleteAccumulation,
   useRefreshWatchlist,
+  useTradingProposals,
+  useCreateProposal,
+  useBotProposalReview,
+  useApproveProposal,
+  useRejectProposal,
+  useBotWallet,
+  useUpdateBotWallet,
+  useMarketDiscovery,
+  useRefreshMarketDiscovery,
+  useAddWatchlist,
 } from '../../hooks/useTrading'
-import type { AssetType, DcaRankedItem, Timeframe } from '../../types/trading'
+import type {
+  AssetType,
+  DcaRankedItem,
+  Timeframe,
+  TradingOrderProposal,
+  MarketDiscoveryItem,
+} from '../../types/trading'
 
 interface Props {
   onSelectTickerForTerminal: (symbol: string, timeframe: Timeframe, assetType: AssetType) => void
@@ -62,12 +78,28 @@ function tierBadgeStyle(tier?: string) {
 export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
   const { data: ranked = [], isLoading: rankLoading } = useDcaRanking()
   const { data: accumData, isLoading: accumLoading } = useAccumulations()
+  const { data: proposalsData } = useTradingProposals()
   const addAccumMutation = useAddAccumulation()
   const deleteAccumMutation = useDeleteAccumulation()
   const refreshMutation = useRefreshWatchlist()
+  const createProposalMutation = useCreateProposal()
+  const botReviewMutation = useBotProposalReview()
+  const approveProposalMutation = useApproveProposal()
+  const rejectProposalMutation = useRejectProposal()
 
   const [sizingMode, setSizingMode] = useState<SizingMode>('unit_100')
   const [customCash, setCustomCash] = useState<number>(100)
+  const [proposalFilter, setProposalFilter] = useState<'pending' | 'history'>('pending')
+  const [selectedTradeEnv, setSelectedTradeEnv] = useState<'SIMULATE' | 'REAL'>('SIMULATE')
+  const { data: walletData } = useBotWallet(selectedTradeEnv)
+  const updateWalletMutation = useUpdateBotWallet()
+  const [allocInput, setAllocInput] = useState<string>('')
+  const [editingAlloc, setEditingAlloc] = useState(false)
+  const [guardrailError, setGuardrailError] = useState<string | null>(null)
+  const [discoveryFilter, setDiscoveryFilter] = useState<'ALL' | 'SGX' | 'US' | 'CRYPTO'>('ALL')
+  const { data: discoveryItems = [], isLoading: discoveryLoading } = useMarketDiscovery()
+  const refreshDiscoveryMutation = useRefreshMarketDiscovery()
+  const addWatchlistMutation = useAddWatchlist()
 
   // Modal state for logging a monthly buy
   const [logModalOpen, setLogModalOpen] = useState(false)
@@ -193,6 +225,52 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
   const totals = accumData?.totals
   const holdings = accumData?.holdings || []
   const entries = accumData?.entries || []
+  const allProposals: TradingOrderProposal[] = proposalsData?.proposals || []
+  const pendingProposals = allProposals.filter((p) => p.status === 'pending_approval')
+  const historyProposals = allProposals.filter((p) => p.status !== 'pending_approval')
+
+  function handleStagePreApproval(item: DcaRankedItem, useDipPrice = false) {
+    const entryPrice =
+      useDipPrice && item.dca?.ideal_dip_price ? item.dca.ideal_dip_price : item.price
+    let qty = 1
+    let lotLabel = `$${effectiveCashUnit} Unit`
+    if (sizingMode === 'lot_100') {
+      qty = 100
+      lotLabel = '1 Lot (100 shares)'
+    } else if (item.asset_type === 'crypto') {
+      qty = Number((effectiveCashUnit / entryPrice).toFixed(6))
+    } else {
+      qty = Math.max(1, Math.round(effectiveCashUnit / entryPrice))
+      lotLabel = `$${effectiveCashUnit} Unit (${qty} sh)`
+    }
+
+    setGuardrailError(null)
+    createProposalMutation.mutate(
+      {
+        symbol: item.symbol,
+        name: item.name,
+        asset_type: item.asset_type,
+        currency: item.currency,
+        qty,
+        proposed_price: entryPrice,
+        lot_label: lotLabel,
+        trade_env: selectedTradeEnv,
+        proposed_dca_score: item.dca?.dca_score ?? 70,
+        proposed_rsi: item.rsi,
+        proposed_signal: item.technical_signal,
+        proposal_reason:
+          item.dca?.reasons?.join(' ') ||
+          `Staged from Watchlist DCA Rank #${item.rank} at ${item.currency} ${fmtPrice(entryPrice)}.`,
+      },
+      {
+        onError: (err: any) => {
+          setGuardrailError(
+            err?.response?.data?.error || err?.message || 'Failed to stage pre-approval request',
+          )
+        },
+      },
+    )
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -353,6 +431,728 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
         </div>
       </div>
 
+      {/* ── Moomoo Pre-Approval Queue & Bot Re-Evaluation Lifecycle ── */}
+      <div
+        style={{
+          background: 'rgba(15, 23, 42, 0.92)',
+          border:
+            pendingProposals.length > 0
+              ? '1px solid rgba(245, 158, 11, 0.5)'
+              : '1px solid rgba(51, 65, 85, 0.7)',
+          borderRadius: '0.9rem',
+          padding: '1rem 1.15rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.85rem',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '0.75rem',
+          }}
+        >
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span
+                style={{
+                  fontSize: '0.68rem',
+                  fontWeight: 900,
+                  padding: '0.16rem 0.55rem',
+                  borderRadius: '999px',
+                  background:
+                    pendingProposals.length > 0
+                      ? 'rgba(245, 158, 11, 0.2)'
+                      : 'rgba(56, 189, 248, 0.15)',
+                  color: pendingProposals.length > 0 ? '#fbbf24' : '#38bdf8',
+                  border:
+                    pendingProposals.length > 0
+                      ? '1px solid rgba(245, 158, 11, 0.45)'
+                      : '1px solid rgba(56, 189, 248, 0.35)',
+                }}
+              >
+                {pendingProposals.length > 0
+                  ? `${pendingProposals.length} AWAITING YOUR PRE-APPROVAL`
+                  : 'PRE-APPROVAL & BOT GUARDRAIL'}
+              </span>
+              <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: '#f8fafc' }}>
+                🛡️ Moomoo Trade Pre-Approval &amp; Bot Worthiness Review
+              </h3>
+            </div>
+            <p style={{ margin: '0.2rem 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>
+              Every trade waits for your pre-approval. If you haven&apos;t reviewed a request yet, the bot re-evaluates it hourly (checking price drift, RSI &amp; DCA score) and auto-cancels it if the dip is gone and no longer worth performing.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {/* Moomoo Env Selector */}
+            <div
+              style={{
+                display: 'inline-flex',
+                background: '#090d16',
+                padding: '0.2rem',
+                borderRadius: '0.5rem',
+                border: '1px solid #1e293b',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setSelectedTradeEnv('SIMULATE')}
+                style={{
+                  padding: '0.3rem 0.55rem',
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  borderRadius: '0.38rem',
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: selectedTradeEnv === 'SIMULATE' ? 'rgba(56, 189, 248, 0.2)' : 'transparent',
+                  color: selectedTradeEnv === 'SIMULATE' ? '#38bdf8' : '#64748b',
+                }}
+              >
+                Moomoo SIMULATE
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedTradeEnv('REAL')}
+                style={{
+                  padding: '0.3rem 0.55rem',
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  borderRadius: '0.38rem',
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: selectedTradeEnv === 'REAL' ? 'rgba(245, 158, 11, 0.22)' : 'transparent',
+                  color: selectedTradeEnv === 'REAL' ? '#fbbf24' : '#64748b',
+                }}
+              >
+                Moomoo REAL
+              </button>
+            </div>
+
+            {/* Filter Pending vs History */}
+            <div
+              style={{
+                display: 'inline-flex',
+                background: '#090d16',
+                padding: '0.2rem',
+                borderRadius: '0.5rem',
+                border: '1px solid #1e293b',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setProposalFilter('pending')}
+                style={{
+                  padding: '0.3rem 0.6rem',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  borderRadius: '0.38rem',
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: proposalFilter === 'pending' ? '#1e293b' : 'transparent',
+                  color: proposalFilter === 'pending' ? '#f8fafc' : '#64748b',
+                }}
+              >
+                Pending ({pendingProposals.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setProposalFilter('history')}
+                style={{
+                  padding: '0.3rem 0.6rem',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  borderRadius: '0.38rem',
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: proposalFilter === 'history' ? '#1e293b' : 'transparent',
+                  color: proposalFilter === 'history' ? '#f8fafc' : '#64748b',
+                }}
+              >
+                History / Bot-Cancelled ({historyProposals.length})
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => botReviewMutation.mutate(undefined)}
+              disabled={botReviewMutation.isPending}
+              style={{
+                padding: '0.4rem 0.75rem',
+                borderRadius: '0.5rem',
+                border: '1px solid rgba(56, 189, 248, 0.45)',
+                background: 'rgba(2, 132, 199, 0.18)',
+                color: '#38bdf8',
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              {botReviewMutation.isPending
+                ? '🤖 Bot Reviewing…'
+                : '🤖 Bot Re-Evaluate Unreviewed Now'}
+            </button>
+          </div>
+        </div>
+
+        {/* ── 2-Column Strip: Live Moomoo Account Balance vs Website Bot Allocated Balance Guardrail ── */}
+        {walletData && (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
+              gap: '0.75rem',
+            }}
+          >
+            {/* Card 1: Live Moomoo Account Balance */}
+            <div
+              style={{
+                background: '#090d16',
+                border: '1px solid #1e293b',
+                borderRadius: '0.7rem',
+                padding: '0.8rem 0.95rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', letterSpacing: '0.05em' }}>
+                  🏦 MOOMOO ACCOUNT BALANCE ({walletData.moomoo.trd_env})
+                </span>
+                <span
+                  style={{
+                    fontSize: '0.64rem',
+                    fontWeight: 800,
+                    padding: '0.12rem 0.45rem',
+                    borderRadius: '999px',
+                    background: walletData.moomoo.connected
+                      ? 'rgba(16, 185, 129, 0.16)'
+                      : 'rgba(245, 158, 11, 0.15)',
+                    color: walletData.moomoo.connected ? '#34d399' : '#fbbf24',
+                  }}
+                >
+                  {walletData.moomoo.connected
+                    ? `● Connected (${walletData.moomoo.acc_id || 'OpenD'})`
+                    : '○ OpenD Offline'}
+                </span>
+              </div>
+
+              {walletData.moomoo.connected ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginTop: '0.1rem' }}>
+                  <div>
+                    <div style={{ fontSize: '0.62rem', color: '#64748b', fontWeight: 700 }}>CASH BALANCE</div>
+                    <div style={{ fontSize: '0.98rem', fontWeight: 900, color: '#f8fafc', fontFamily: 'monospace' }}>
+                      {walletData.moomoo.currency} {fmtPrice(walletData.moomoo.cash)}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.62rem', color: '#64748b', fontWeight: 700 }}>TOTAL ASSETS</div>
+                    <div style={{ fontSize: '0.98rem', fontWeight: 800, color: '#38bdf8', fontFamily: 'monospace' }}>
+                      {walletData.moomoo.currency} {fmtPrice(walletData.moomoo.total_assets)}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.62rem', color: '#64748b', fontWeight: 700 }}>BUYING POWER</div>
+                    <div style={{ fontSize: '0.98rem', fontWeight: 800, color: '#cbd5e1', fontFamily: 'monospace' }}>
+                      {walletData.moomoo.currency} {fmtPrice(walletData.moomoo.buying_power)}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: '0.73rem', color: '#94a3b8', lineHeight: 1.4 }}>
+                  Moomoo OpenD gateway is not currently logged in ({walletData.moomoo.error || 'offline'}). Start/login Moomoo OpenD in Quant Settings to view live broker cash &amp; auto-route stock orders; pre-approvals &amp; bot allocation limits remain active.
+                </div>
+              )}
+            </div>
+
+            {/* Card 2: Website Bot Allocated Balance (Strict Guardrail) */}
+            <div
+              style={{
+                background: 'linear-gradient(135deg, rgba(6, 78, 59, 0.22), rgba(9, 13, 22, 0.96))',
+                border: '1px solid rgba(16, 185, 129, 0.4)',
+                borderRadius: '0.7rem',
+                padding: '0.8rem 0.95rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
+                <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#6ee7b7', letterSpacing: '0.05em' }}>
+                  🔒 BOT ALLOCATED WALLET (ONLY TOUCHES THIS BALANCE)
+                </span>
+                {!editingAlloc ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAllocInput(String(walletData.budget.allocated_budget))
+                      setEditingAlloc(true)
+                    }}
+                    style={{
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      padding: '0.15rem 0.5rem',
+                      borderRadius: '0.35rem',
+                      border: '1px solid rgba(16, 185, 129, 0.45)',
+                      background: 'rgba(16, 185, 129, 0.14)',
+                      color: '#34d399',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ✎ Set Bot Allocation (${fmtPrice(walletData.budget.allocated_budget)})
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <input
+                      type="number"
+                      min={0}
+                      step={50}
+                      value={allocInput}
+                      onChange={(e) => setAllocInput(e.target.value)}
+                      style={{
+                        width: '92px',
+                        padding: '0.2rem 0.45rem',
+                        borderRadius: '0.35rem',
+                        border: '1px solid #34d399',
+                        background: '#090d16',
+                        color: '#f8fafc',
+                        fontSize: '0.74rem',
+                        fontFamily: 'monospace',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const val = parseFloat(allocInput)
+                        if (isFinite(val) && val >= 0) {
+                          await updateWalletMutation.mutateAsync(val)
+                          setEditingAlloc(false)
+                          setGuardrailError(null)
+                        }
+                      }}
+                      disabled={updateWalletMutation.isPending}
+                      style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 800,
+                        padding: '0.22rem 0.55rem',
+                        borderRadius: '0.35rem',
+                        border: 'none',
+                        background: '#10b981',
+                        color: '#052e16',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingAlloc(false)}
+                      style={{
+                        fontSize: '0.68rem',
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#94a3b8',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.45rem' }}>
+                <div>
+                  <div style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 700 }}>ALLOCATED</div>
+                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#f8fafc', fontFamily: 'monospace' }}>
+                    ${fmtPrice(walletData.budget.allocated_budget)}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 700 }}>USED BY BOT</div>
+                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#cbd5e1', fontFamily: 'monospace' }}>
+                    ${fmtPrice(walletData.budget.used_budget)}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 700 }}>IN PENDING</div>
+                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#fbbf24', fontFamily: 'monospace' }}>
+                    ${fmtPrice(walletData.budget.reserved_pending)}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 700 }}>AVAILABLE TO TOUCH</div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#34d399', fontFamily: 'monospace' }}>
+                    ${fmtPrice(walletData.budget.available_bot_balance)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {guardrailError && (
+          <div
+            style={{
+              padding: '0.6rem 0.85rem',
+              borderRadius: '0.5rem',
+              background: 'rgba(244, 63, 94, 0.14)',
+              border: '1px solid rgba(244, 63, 94, 0.4)',
+              color: '#fda4af',
+              fontSize: '0.75rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '0.5rem',
+            }}
+          >
+            <span>🛑 {guardrailError}</span>
+            <button
+              type="button"
+              onClick={() => setGuardrailError(null)}
+              style={{ background: 'transparent', border: 'none', color: '#fda4af', cursor: 'pointer' }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Proposals List */}
+        {proposalFilter === 'pending' ? (
+          pendingProposals.length === 0 ? (
+            <div
+              style={{
+                padding: '0.9rem 1rem',
+                background: '#090d16',
+                borderRadius: '0.6rem',
+                border: '1px dashed #334155',
+                color: '#94a3b8',
+                fontSize: '0.78rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '0.5rem',
+              }}
+            >
+              <span>
+                No pending pre-approval requests right now. Click <strong>&ldquo;📝 Stage Pre-Approval&rdquo;</strong> on any stock below or click <strong>&ldquo;🤖 Bot Re-Evaluate Unreviewed Now&rdquo;</strong> to let the bot scan and stage top watchlist picks.
+              </span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+              {pendingProposals.map((p) => {
+                const isBetterEntry = p.price_drift_pct <= -0.5
+                const isDriftingUp = p.price_drift_pct >= 2.0
+                return (
+                  <div
+                    key={p.id}
+                    style={{
+                      background: '#090d16',
+                      border: isBetterEntry
+                        ? '1px solid rgba(16, 185, 129, 0.5)'
+                        : isDriftingUp
+                          ? '1px solid rgba(245, 158, 11, 0.5)'
+                          : '1px solid #1e293b',
+                      borderRadius: '0.75rem',
+                      padding: '0.85rem 1rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.6rem',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        flexWrap: 'wrap',
+                        gap: '0.65rem',
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                          <span
+                            style={{
+                              fontSize: '0.66rem',
+                              fontWeight: 900,
+                              padding: '0.14rem 0.48rem',
+                              borderRadius: '0.3rem',
+                              background: 'rgba(16, 185, 129, 0.18)',
+                              color: '#34d399',
+                              fontFamily: 'monospace',
+                            }}
+                          >
+                            {p.side} {fmtUnits(p.qty)} {p.symbol}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '0.66rem',
+                              fontWeight: 700,
+                              padding: '0.14rem 0.45rem',
+                              borderRadius: '0.3rem',
+                              background: 'rgba(56, 189, 248, 0.14)',
+                              color: '#38bdf8',
+                            }}
+                          >
+                            {p.lot_label} · {p.market}
+                          </span>
+                          {p.source === 'bot_discovery' && (
+                            <span
+                              style={{
+                                fontSize: '0.64rem',
+                                fontWeight: 800,
+                                padding: '0.14rem 0.48rem',
+                                borderRadius: '0.3rem',
+                                background: 'rgba(168, 85, 247, 0.2)',
+                                border: '1px solid rgba(168, 85, 247, 0.45)',
+                                color: '#d8b4fe',
+                              }}
+                            >
+                              🌟 NEW MARKET PROPOSAL (OUTSIDE WATCHLIST)
+                            </span>
+                          )}
+                          <span
+                            style={{
+                              fontSize: '0.65rem',
+                              color: '#64748b',
+                              fontFamily: 'monospace',
+                            }}
+                          >
+                            Proposed @ {p.currency} {fmtPrice(p.proposed_price)} (Est. {p.currency}{' '}
+                            {fmtPrice(p.total_estimated_cost)})
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#cbd5e1', marginTop: '0.3rem' }}>
+                          {p.proposal_reason}
+                        </div>
+                      </div>
+
+                      {/* Live vs Proposed Comparison + Action Buttons */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <div
+                          style={{
+                            textAlign: 'right',
+                            fontFamily: 'monospace',
+                            fontSize: '0.74rem',
+                            paddingRight: '0.4rem',
+                          }}
+                        >
+                          <div style={{ color: '#f8fafc', fontWeight: 800 }}>
+                            Live: {p.currency} {fmtPrice(p.current_price)}{' '}
+                            <span
+                              style={{
+                                color:
+                                  p.price_drift_pct <= 0
+                                    ? '#34d399'
+                                    : p.price_drift_pct > 2.5
+                                      ? '#fbbf24'
+                                      : '#94a3b8',
+                              }}
+                            >
+                              ({p.price_drift_pct >= 0 ? '+' : ''}
+                              {p.price_drift_pct.toFixed(2)}%)
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                            DCA Score: <strong style={{ color: '#34d399' }}>{p.current_dca_score}/100</strong> (was{' '}
+                            {p.proposed_dca_score})
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setGuardrailError(null)
+                            approveProposalMutation.mutate(
+                              {
+                                id: p.id,
+                                payload: {
+                                  execute_on_moomoo: p.asset_type !== 'crypto',
+                                  trade_env: selectedTradeEnv,
+                                  execution_price: p.current_price,
+                                  qty: p.qty,
+                                },
+                              },
+                              {
+                                onError: (err: any) => {
+                                  setGuardrailError(
+                                    err?.response?.data?.error ||
+                                      err?.message ||
+                                      'Approval blocked by Bot Allocation Guardrail',
+                                  )
+                                },
+                              },
+                            )
+                          }}
+                          disabled={approveProposalMutation.isPending}
+                          style={{
+                            padding: '0.45rem 0.8rem',
+                            borderRadius: '0.5rem',
+                            border: '1px solid #34d399',
+                            background: '#10b981',
+                            color: '#052e16',
+                            fontWeight: 800,
+                            fontSize: '0.74rem',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {p.asset_type === 'crypto'
+                            ? '✅ Approve & Log DCA'
+                            : `✅ Approve → Moomoo (${selectedTradeEnv})`}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => botReviewMutation.mutate(p.id)}
+                          disabled={botReviewMutation.isPending}
+                          title="Ask bot to re-verify live price, RSI & DCA score right now"
+                          style={{
+                            padding: '0.45rem 0.65rem',
+                            borderRadius: '0.5rem',
+                            border: '1px solid #334155',
+                            background: '#1e293b',
+                            color: '#38bdf8',
+                            fontWeight: 700,
+                            fontSize: '0.72rem',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          🤖 Re-Check Worth
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => rejectProposalMutation.mutate(p.id)}
+                          disabled={rejectProposalMutation.isPending}
+                          style={{
+                            padding: '0.45rem 0.6rem',
+                            borderRadius: '0.5rem',
+                            border: '1px solid rgba(244, 63, 94, 0.35)',
+                            background: 'rgba(244, 63, 94, 0.12)',
+                            color: '#fb7185',
+                            fontWeight: 700,
+                            fontSize: '0.72rem',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          ✕ Reject
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Bot Re-Check Verdict Strip */}
+                    {p.last_bot_review_note && (
+                      <div
+                        style={{
+                          padding: '0.45rem 0.65rem',
+                          borderRadius: '0.45rem',
+                          background: isBetterEntry
+                            ? 'rgba(16, 185, 129, 0.12)'
+                            : 'rgba(56, 189, 248, 0.08)',
+                          border: isBetterEntry
+                            ? '1px solid rgba(16, 185, 129, 0.3)'
+                            : '1px solid rgba(56, 189, 248, 0.2)',
+                          fontSize: '0.73rem',
+                          color: isBetterEntry ? '#6ee7b7' : '#bae6fd',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: '0.4rem',
+                        }}
+                      >
+                        <span>🤖 {p.last_bot_review_note}</span>
+                        {p.last_bot_review_at && (
+                          <span style={{ fontSize: '0.66rem', color: '#64748b', fontFamily: 'monospace' }}>
+                            Reviews: {p.bot_review_count}× · Last:{' '}
+                            {new Date(p.last_bot_review_at).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )
+        ) : historyProposals.length === 0 ? (
+          <div style={{ fontSize: '0.78rem', color: '#64748b', padding: '0.5rem 0' }}>
+            No executed or bot-cancelled proposals yet.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', maxHeight: '240px', overflowY: 'auto' }}>
+            {historyProposals.map((p) => {
+              const isExecuted = p.status === 'executed'
+              const isBotCancelled = p.status === 'cancelled_bot_stale'
+              return (
+                <div
+                  key={p.id}
+                  style={{
+                    padding: '0.55rem 0.75rem',
+                    borderRadius: '0.5rem',
+                    background: '#090d16',
+                    border: '1px solid #1e293b',
+                    fontSize: '0.74rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.25rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <span
+                        style={{
+                          fontSize: '0.64rem',
+                          fontWeight: 800,
+                          padding: '0.1rem 0.42rem',
+                          borderRadius: '0.25rem',
+                          background: isExecuted
+                            ? 'rgba(16, 185, 129, 0.18)'
+                            : isBotCancelled
+                              ? 'rgba(245, 158, 11, 0.18)'
+                              : 'rgba(148, 163, 184, 0.14)',
+                          color: isExecuted ? '#34d399' : isBotCancelled ? '#fbbf24' : '#94a3b8',
+                        }}
+                      >
+                        {isExecuted
+                          ? '✅ APPROVED & EXECUTED'
+                          : isBotCancelled
+                            ? '🛑 AUTO-CANCELLED BY BOT (NO LONGER WORTH IT)'
+                            : '✕ REJECTED BY USER'}
+                      </span>
+                      <strong style={{ color: '#f8fafc', fontFamily: 'monospace' }}>
+                        {p.side} {fmtUnits(p.qty)} {p.symbol} ({p.lot_label})
+                      </strong>
+                      <span style={{ color: '#94a3b8', fontFamily: 'monospace' }}>
+                        @ {p.currency} {fmtPrice(p.current_price || p.proposed_price)}
+                      </span>
+                    </div>
+                    {p.reviewed_at && (
+                      <span style={{ fontSize: '0.68rem', color: '#64748b', fontFamily: 'monospace' }}>
+                        {new Date(p.reviewed_at).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                  {(p.execution_note || p.last_bot_review_note) && (
+                    <div style={{ fontSize: '0.71rem', color: isBotCancelled ? '#fde68a' : '#94a3b8' }}>
+                      {p.execution_note || p.last_bot_review_note}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
       {/* ── #1 Monthly Pick Spotlight Banner ── */}
       {topPick && topPick.dca && (
         <div
@@ -455,6 +1255,24 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                   <span style={{ fontSize: '0.8rem', color: '#64748b' }}>/100</span>
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={() => handleStagePreApproval(topPick, false)}
+                disabled={createProposalMutation.isPending}
+                style={{
+                  padding: '0.6rem 0.95rem',
+                  borderRadius: '0.6rem',
+                  border: '1px solid rgba(245, 158, 11, 0.5)',
+                  background: 'rgba(245, 158, 11, 0.16)',
+                  color: '#fbbf24',
+                  fontWeight: 800,
+                  fontSize: '0.78rem',
+                  cursor: 'pointer',
+                }}
+              >
+                📝 Stage Pre-Approval
+              </button>
 
               <button
                 type="button"
@@ -799,7 +1617,25 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                 )}
 
                 {/* Action Footer */}
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.2rem' }}>
+                <div style={{ display: 'flex', gap: '0.45rem', marginTop: '0.2rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleStagePreApproval(item, false)}
+                    disabled={createProposalMutation.isPending}
+                    style={{
+                      flex: 1,
+                      padding: '0.45rem 0.55rem',
+                      borderRadius: '0.5rem',
+                      border: '1px solid rgba(245, 158, 11, 0.45)',
+                      background: 'rgba(245, 158, 11, 0.14)',
+                      color: '#fbbf24',
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    📝 Pre-Approve
+                  </button>
                   <button
                     type="button"
                     onClick={() =>
@@ -812,28 +1648,28 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                     }
                     style={{
                       flex: 1,
-                      padding: '0.45rem 0.65rem',
+                      padding: '0.45rem 0.55rem',
                       borderRadius: '0.5rem',
                       border: '1px solid rgba(16, 185, 129, 0.45)',
                       background: 'rgba(16, 185, 129, 0.14)',
                       color: '#34d399',
-                      fontSize: '0.74rem',
+                      fontSize: '0.72rem',
                       fontWeight: 800,
                       cursor: 'pointer',
                     }}
                   >
-                    + Log {sizingMode === 'lot_100' ? '1 Lot' : `$${effectiveCashUnit}`} Buy
+                    + Log {sizingMode === 'lot_100' ? '1 Lot' : `$${effectiveCashUnit}`}
                   </button>
                   <button
                     type="button"
                     onClick={() => onSelectTickerForTerminal(item.symbol, item.timeframe, item.asset_type)}
                     style={{
-                      padding: '0.45rem 0.7rem',
+                      padding: '0.45rem 0.65rem',
                       borderRadius: '0.5rem',
                       border: '1px solid #334155',
                       background: '#1e293b',
                       color: '#cbd5e1',
-                      fontSize: '0.74rem',
+                      fontSize: '0.72rem',
                       fontWeight: 600,
                       cursor: 'pointer',
                     }}
@@ -846,6 +1682,355 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
           })}
         </div>
       )}
+
+      {/* ── Section 1.5: Bot New Market Discovery (Proposed Outside Watchlist) ── */}
+      <div
+        style={{
+          background:
+            'linear-gradient(135deg, rgba(46, 16, 101, 0.28) 0%, rgba(15, 23, 42, 0.94) 60%)',
+          border: '1px solid rgba(168, 85, 247, 0.38)',
+          borderRadius: '0.9rem',
+          padding: '1.15rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.95rem',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '0.75rem',
+          }}
+        >
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span
+                style={{
+                  fontSize: '0.68rem',
+                  fontWeight: 900,
+                  padding: '0.16rem 0.55rem',
+                  borderRadius: '999px',
+                  background: 'rgba(168, 85, 247, 0.22)',
+                  border: '1px solid rgba(168, 85, 247, 0.5)',
+                  color: '#d8b4fe',
+                }}
+              >
+                🌟 BEYOND YOUR WATCHLIST
+              </span>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#f8fafc' }}>
+                🌍 Bot New Market Proposals &amp; Why They Are Worth Considering
+              </h3>
+            </div>
+            <p style={{ margin: '0.22rem 0 0', fontSize: '0.76rem', color: '#94a3b8' }}>
+              Scans SGX Dividend Banks &amp; REITs, US Quality Compounders, Low-Fee ETFs, and Crypto outside your watchlist—ranking new monthly DCA ideas with fundamental + technical reasons.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+            <div
+              style={{
+                display: 'inline-flex',
+                background: '#090d16',
+                padding: '0.2rem',
+                borderRadius: '0.5rem',
+                border: '1px solid #1e293b',
+              }}
+            >
+              {(['ALL', 'SGX', 'US', 'CRYPTO'] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setDiscoveryFilter(f)}
+                  style={{
+                    padding: '0.3rem 0.6rem',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    borderRadius: '0.38rem',
+                    border: 'none',
+                    cursor: 'pointer',
+                    background:
+                      discoveryFilter === f ? 'rgba(168, 85, 247, 0.25)' : 'transparent',
+                    color: discoveryFilter === f ? '#e9d5ff' : '#64748b',
+                  }}
+                >
+                  {f === 'ALL'
+                    ? 'All Markets'
+                    : f === 'SGX'
+                      ? '🇸🇬 SGX (1-Lot)'
+                      : f === 'US'
+                        ? '🇺🇸 US Stocks & ETFs'
+                        : '🪙 Crypto'}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => refreshDiscoveryMutation.mutate()}
+              disabled={refreshDiscoveryMutation.isPending}
+              style={{
+                padding: '0.4rem 0.75rem',
+                borderRadius: '0.5rem',
+                border: '1px solid rgba(168, 85, 247, 0.45)',
+                background: 'rgba(168, 85, 247, 0.16)',
+                color: '#e9d5ff',
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              {refreshDiscoveryMutation.isPending ? 'Scanning Markets…' : '🔍 Rescan New Markets'}
+            </button>
+          </div>
+        </div>
+
+        {discoveryLoading ? (
+          <div style={{ padding: '1.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.82rem' }}>
+            Scanning US, SGX, ETF &amp; Crypto markets outside your watchlist…
+          </div>
+        ) : (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))',
+              gap: '0.9rem',
+            }}
+          >
+            {discoveryItems
+              .filter((d) => discoveryFilter === 'ALL' || d.market === discoveryFilter)
+              .map((disc: MarketDiscoveryItem) => {
+                const badge = tierBadgeStyle(disc.dca?.dca_tier)
+                const isSgx = disc.market === 'SGX' || disc.symbol.endsWith('.SI')
+                const unitsSpot = disc.price > 0 ? effectiveCashUnit / disc.price : 0
+                const lotCostSpot = disc.price * 100
+
+                return (
+                  <div
+                    key={disc.symbol}
+                    style={{
+                      background: 'rgba(9, 13, 22, 0.88)',
+                      border: '1px solid rgba(168, 85, 247, 0.3)',
+                      borderRadius: '0.8rem',
+                      padding: '0.95rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      gap: '0.75rem',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.4rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                          <span
+                            style={{
+                              fontSize: '0.64rem',
+                              fontWeight: 900,
+                              padding: '0.14rem 0.45rem',
+                              borderRadius: '0.3rem',
+                              background: 'rgba(168, 85, 247, 0.22)',
+                              color: '#e9d5ff',
+                            }}
+                          >
+                            🌟 #{disc.rank}
+                          </span>
+                          <span style={{ fontSize: '1.02rem', fontWeight: 800, color: '#f8fafc', fontFamily: 'monospace' }}>
+                            {disc.symbol}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '0.62rem',
+                              padding: '0.12rem 0.42rem',
+                              borderRadius: '0.28rem',
+                              background: '#1e293b',
+                              color: '#cbd5e1',
+                              fontWeight: 700,
+                            }}
+                          >
+                            {disc.category}
+                          </span>
+                        </div>
+
+                        <span
+                          style={{
+                            fontSize: '0.82rem',
+                            fontWeight: 900,
+                            fontFamily: 'monospace',
+                            color: badge.color,
+                            background: badge.bg,
+                            border: `1px solid ${badge.border}`,
+                            padding: '0.14rem 0.5rem',
+                            borderRadius: '0.38rem',
+                          }}
+                        >
+                          DCA {disc.dca.dca_score}/100
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '0.35rem' }}>
+                        <span style={{ fontSize: '0.76rem', color: '#94a3b8' }}>{disc.name}</span>
+                        <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#f8fafc', fontFamily: 'monospace' }}>
+                          {disc.currency} {fmtPrice(disc.price)}{' '}
+                          <span
+                            style={{
+                              fontSize: '0.74rem',
+                              color: disc.change_pct >= 0 ? '#34d399' : '#fb7185',
+                            }}
+                          >
+                            ({disc.change_pct >= 0 ? '+' : ''}
+                            {disc.change_pct.toFixed(2)}%)
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Why the Bot Proposes This New Market Ticker */}
+                    <div
+                      style={{
+                        background: 'rgba(168, 85, 247, 0.08)',
+                        border: '1px solid rgba(168, 85, 247, 0.24)',
+                        borderRadius: '0.55rem',
+                        padding: '0.6rem 0.7rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.32rem',
+                      }}
+                    >
+                      <div style={{ fontSize: '0.66rem', fontWeight: 800, color: '#d8b4fe', letterSpacing: '0.04em' }}>
+                        🤖 WHY BOT PROPOSES THIS MARKET:
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: '#f1f5f9', lineHeight: 1.38 }}>
+                        <strong>Thesis:</strong> {disc.thesis_hook}
+                      </div>
+                      {disc.dca.reasons.slice(0, 2).map((r, idx) => (
+                        <div key={idx} style={{ fontSize: '0.72rem', color: '#cbd5e1', lineHeight: 1.35 }}>
+                          • {r}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Quick Sizing Line */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        fontSize: '0.72rem',
+                        color: '#94a3b8',
+                        fontFamily: 'monospace',
+                        background: '#0f172a',
+                        padding: '0.42rem 0.6rem',
+                        borderRadius: '0.45rem',
+                      }}
+                    >
+                      <span>
+                        {isSgx || sizingMode === 'lot_100'
+                          ? `1 Lot (100 sh): ${disc.currency} ${fmtPrice(lotCostSpot)}`
+                          : `$${effectiveCashUnit} Unit: ${fmtUnits(unitsSpot)} sh`}
+                      </span>
+                      <span style={{ color: '#34d399' }}>
+                        Dip S1: {disc.currency} {fmtPrice(disc.dca.ideal_dip_price)}
+                      </span>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleStagePreApproval(
+                            {
+                              rank: disc.rank,
+                              watchlist_id: 0,
+                              symbol: disc.symbol,
+                              asset_type: disc.asset_type,
+                              name: disc.name,
+                              timeframe: '1d',
+                              currency: disc.currency,
+                              exchange: disc.exchange,
+                              price: disc.price,
+                              change_pct: disc.change_pct,
+                              technical_score: disc.technical_score,
+                              technical_signal: disc.technical_signal,
+                              rsi: disc.rsi,
+                              sma200: disc.sma200,
+                              sma50: null,
+                              support_s1: disc.support_s1,
+                              period_high: null,
+                              ai_bias: null,
+                              ai_summary: null,
+                              dca: disc.dca,
+                              holding: null,
+                              fetched_at: disc.fetched_at,
+                            },
+                            false,
+                          )
+                        }
+                        disabled={createProposalMutation.isPending}
+                        style={{
+                          flex: 1,
+                          padding: '0.45rem 0.55rem',
+                          borderRadius: '0.5rem',
+                          border: '1px solid rgba(245, 158, 11, 0.45)',
+                          background: 'rgba(245, 158, 11, 0.14)',
+                          color: '#fbbf24',
+                          fontSize: '0.72rem',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        📝 Pre-Approve
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          addWatchlistMutation.mutate({
+                            symbol: disc.symbol,
+                            asset_type: disc.asset_type,
+                            timeframe: '1d',
+                            name: disc.name,
+                          })
+                        }
+                        disabled={addWatchlistMutation.isPending}
+                        style={{
+                          padding: '0.45rem 0.65rem',
+                          borderRadius: '0.5rem',
+                          border: '1px solid rgba(168, 85, 247, 0.45)',
+                          background: 'rgba(168, 85, 247, 0.16)',
+                          color: '#e9d5ff',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        + Watchlist
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => onSelectTickerForTerminal(disc.symbol, '1d', disc.asset_type)}
+                        style={{
+                          padding: '0.45rem 0.65rem',
+                          borderRadius: '0.5rem',
+                          border: '1px solid #334155',
+                          background: '#1e293b',
+                          color: '#cbd5e1',
+                          fontSize: '0.72rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Chart →
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+          </div>
+        )}
+      </div>
 
       {/* ── Section 2: Monthly Accumulation Portfolio & Cost-Basis Tracker ── */}
       <div

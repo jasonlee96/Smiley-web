@@ -305,3 +305,85 @@ export interface AccumulationsResponse {
   holdings: AccumulationHolding[]
   entries: AccumulationEntry[]
 }
+
+export interface TradingOrderProposal {
+  id: number
+  symbol: string
+  name: string
+  asset_type: AssetType
+  market: string
+  currency: string
+  side: string
+  qty: number
+  proposed_price: number
+  total_estimated_cost: number
+  lot_label: string
+  trade_env: 'SIMULATE' | 'REAL'
+  proposed_dca_score: number
+  proposed_rsi: number | null
+  proposed_signal: string
+  proposal_reason: string
+  source: 'bot_hourly' | 'bot_discovery' | 'manual'
+  status: 'pending_approval' | 'executed' | 'cancelled_bot_stale' | 'rejected_user' | 'failed'
+  still_worth_it: boolean
+  bot_review_count: number
+  current_price: number
+  current_dca_score: number
+  current_rsi: number | null
+  price_drift_pct: number
+  last_bot_review_note: string | null
+  last_bot_review_at: string | null
+  moomoo_order_id: string | null
+  execution_note: string | null
+  created_at: string
+  reviewed_at: string | null
+}
+
+export interface ProposalsResponse {
+  pending_count: number
+  proposals: TradingOrderProposal[]
+}
+
+export interface BotWalletResponse {
+  budget: {
+    allocated_budget: number
+    used_budget: number
+    reserved_pending: number
+    available_bot_balance: number
+    unreserved_bot_balance: number
+  }
+  moomoo: {
+    connected: boolean
+    acc_id: string | null
+    trd_env: string
+    currency: string
+    cash: number | null
+    total_assets: number | null
+    market_val: number | null
+    buying_power: number | null
+    error?: string
+  }
+}
+
+export interface MarketDiscoveryItem {
+  rank: number
+  symbol: string
+  name: string
+  asset_type: AssetType
+  market: 'US' | 'SGX' | 'CRYPTO'
+  category: string
+  thesis_hook: string
+  currency: string
+  exchange: string
+  price: number
+  change_pct: number
+  technical_score: number
+  technical_signal: TechnicalSignal
+  rsi: number | null
+  sma200: number | null
+  support_s1: number | null
+  dca: DcaOpportunity
+  discovery_reasons: string[]
+  why_propose_summary: string
+  fetched_at: string
+}
