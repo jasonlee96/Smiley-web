@@ -30,6 +30,7 @@ import ExpensesHubPage from './modules/expenses/ExpensesHubPage'
 import MonthDetailPage from './modules/expenses/MonthDetailPage'
 import CategoriesPage from './modules/expenses/CategoriesPage'
 import ImportPage from './modules/expenses/ImportPage'
+import TradingPage from './modules/trading/TradingPage'
 
 function LegacySplitRedirect() {
   const { token } = useParams()
@@ -79,6 +80,7 @@ function AppRoutes() {
         <Route path="/internal/expenses/categories" element={<CategoriesPage />} />
         <Route path="/internal/expenses/import" element={<ImportPage />} />
         <Route path="/internal/expenses/:year/:month" element={<MonthDetailPage />} />
+        <Route path="/internal/trading" element={<TradingPage />} />
         <Route path="/internal/ec2" element={<EC2Page />} />
         <Route path="/internal/jobs" element={<JobsPage />} />
         <Route path="/internal/weather" element={<WeatherPage />} />

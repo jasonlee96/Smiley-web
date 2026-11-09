@@ -1,0 +1,71 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { tradingApi } from '../api/trading'
+import type { AssetType, Timeframe } from '../types/trading'
+
+export function useTradingWatchlist() {
+  return useQuery({
+    queryKey: ['trading', 'watchlist'],
+    queryFn: tradingApi.getWatchlist,
+  })
+}
+
+export function useTradingSnapshot(symbol: string | null, timeframe?: Timeframe, assetType?: AssetType) {
+  return useQuery({
+    queryKey: ['trading', 'snapshot', symbol, timeframe],
+    queryFn: () => tradingApi.getSnapshots(symbol!, { timeframe, asset_type: assetType }),
+    enabled: Boolean(symbol),
+  })
+}
+
+export function useFetchTicker() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: tradingApi.fetchTicker,
+    onSuccess: (snapshot) => {
+      qc.invalidateQueries({ queryKey: ['trading', 'watchlist'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'snapshot', snapshot.symbol] })
+    },
+  })
+}
+
+export function useAnalyzeTicker() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: tradingApi.analyzeTicker,
+    onSuccess: (snapshot) => {
+      qc.invalidateQueries({ queryKey: ['trading', 'watchlist'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'snapshot', snapshot.symbol] })
+    },
+  })
+}
+
+export function useAddWatchlist() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: tradingApi.addToWatchlist,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trading', 'watchlist'] })
+    },
+  })
+}
+
+export function useRemoveWatchlist() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: tradingApi.removeFromWatchlist,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trading', 'watchlist'] })
+    },
+  })
+}
+
+export function useRefreshWatchlist() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: tradingApi.refreshWatchlist,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trading', 'watchlist'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'snapshot'] })
+    },
+  })
+}

@@ -2,13 +2,14 @@ import { ReactNode, useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import {
   CheckSquare, TrendingUp, Server, Activity, Cloud, Mail, Plane, LogOut,
-  SplitSquareVertical, BarChart2, Wrench, Wallet, Receipt, LayoutGrid,
+  SplitSquareVertical, BarChart2, Wrench, Wallet, Receipt, LayoutGrid, LineChart,
 } from 'lucide-react'
 import { useFxRecommendation } from '../hooks/useRates'
 
 const PRIMARY_NAV = [
   { to: '/internal/todos',      label: 'Todos',     icon: CheckSquare },
   { to: '/internal/rates',      label: 'Rates',     icon: TrendingUp },
+  { to: '/internal/trading',    label: 'Trading',   icon: LineChart },
   { to: '/internal/net-worth',  label: 'Net Worth', icon: Wallet },
   { to: '/internal/expenses',   label: 'Expenses',  icon: Receipt },
 ]
