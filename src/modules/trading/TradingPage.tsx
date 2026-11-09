@@ -381,14 +381,9 @@ export default function TradingPage() {
       </div>
 
       {/* Main Layout: Left Watchlist Rail + Right Analysis Workbench */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(270px, 310px) minmax(0, 1fr)',
-        gap: 18,
-        alignItems: 'start',
-      }}>
+      <div className="trading-main-grid">
         {/* Left Watchlist Rail */}
-        <GlassCard style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <GlassCard style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
               <BarChart2 size={15} color="var(--accent-cyan)" />
@@ -454,7 +449,7 @@ export default function TradingPage() {
               No tickers in this filter. Search a symbol above and click <strong>+ Watchlist</strong>.
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="trading-watchlist-items">
               {filteredWatchlist.map((item) => {
                 const isSelected = selectedSymbol.toUpperCase() === item.symbol.toUpperCase()
                 const lat = item.latest
@@ -470,7 +465,7 @@ export default function TradingPage() {
                       setSelectedAssetType(item.asset_type)
                       handleRunFetchAndAnalyze(item.symbol, item.asset_type, timeframe, false)
                     }}
-                    className="hover-lift"
+                    className="hover-lift trading-watchlist-card"
                     style={{
                       padding: '11px 12px',
                       borderRadius: 10,
@@ -572,7 +567,7 @@ export default function TradingPage() {
         </GlassCard>
 
         {/* Right Main Workbench */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 }}>
           {isBusy && !snap ? (
             <GlassCard style={{ padding: 60, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
               <Spinner size={28} />
@@ -587,15 +582,15 @@ export default function TradingPage() {
           ) : (
             <>
               {/* Instrument Spotlight Banner */}
-              <GlassCard style={{ padding: '20px 24px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+              <GlassCard style={{ padding: '16px 18px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 }}>
                   {/* Left: Symbol & Price */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                      <span style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: 26, letterSpacing: '-0.02em' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: 24, letterSpacing: '-0.02em' }}>
                         {snap.symbol}
                       </span>
-                      <span style={{ fontSize: 14, color: 'var(--text-secondary)', fontWeight: 500 }}>
+                      <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>
                         {snap.name}
                       </span>
                       <span style={{
@@ -611,8 +606,8 @@ export default function TradingPage() {
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 2 }}>
-                      <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 30, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 2, flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 26, fontWeight: 700, color: 'var(--text-primary)' }}>
                         {snap.currency} {fmtPrice(snap.price)}
                       </span>
                       <span style={{
@@ -620,14 +615,14 @@ export default function TradingPage() {
                         alignItems: 'center',
                         gap: 4,
                         fontFamily: 'IBM Plex Mono, monospace',
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: 600,
-                        padding: '3px 10px',
+                        padding: '3px 9px',
                         borderRadius: 6,
                         background: snap.change_pct >= 0 ? 'rgba(16,185,129,0.14)' : 'rgba(239,68,68,0.14)',
                         color: snap.change_pct >= 0 ? 'var(--accent-green)' : 'var(--accent-red)',
                       }}>
-                        {snap.change_pct >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                        {snap.change_pct >= 0 ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
                         {snap.change_pct >= 0 ? '+' : ''}{snap.change_pct.toFixed(2)}%
                       </span>
                       <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -642,15 +637,18 @@ export default function TradingPage() {
                     const sig = signalMeta(snap.technical_signal)
                     const comp = snap.indicators.composite
                     return (
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 18,
-                        padding: '12px 18px',
-                        borderRadius: 12,
-                        background: 'rgba(13, 17, 23, 0.75)',
-                        border: `1px solid ${sig.border}`,
-                      }}>
+                      <div
+                        className="trading-Composite-gauge"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 14,
+                          padding: '10px 14px',
+                          borderRadius: 12,
+                          background: 'rgba(13, 17, 23, 0.75)',
+                          border: `1px solid ${sig.border}`,
+                        }}
+                      >
                         <div>
                           <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                             Composite Technical Signal

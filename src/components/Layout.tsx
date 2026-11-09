@@ -56,7 +56,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <header style={{
+      <header className="app-header" style={{
         position: 'sticky', top: 0, zIndex: 50,
         background: 'rgba(8,11,18,0.85)',
         backdropFilter: 'blur(20px)',
@@ -87,7 +87,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             Smiley<span style={{ color: 'var(--accent-cyan)' }}> Web</span>
           </span>
           {currentModule && (
-            <span style={{ color: 'var(--text-muted)', fontSize: 12, whiteSpace: 'nowrap' }}>
+            <span className="app-header-sub" style={{ color: 'var(--text-muted)', fontSize: 12, whiteSpace: 'nowrap' }}>
               / {currentModule.label}
             </span>
           )}
@@ -200,7 +200,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         </button>
       </header>
 
-      <main style={{ flex: 1, padding: '28px 24px', maxWidth: 1200, width: '100%', margin: '0 auto' }}>
+      <main className="app-main" style={{ flex: 1, padding: '28px 24px', maxWidth: 1200, width: '100%', margin: '0 auto' }}>
         {children}
       </main>
     </div>

@@ -310,8 +310,8 @@ export default function TradingChartPanel({ symbol, currency, timeframe, indicat
 
       {/* Sub-chart selector & oscillator pane */}
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             {[
               { id: 'rsi' as const, label: `RSI (14) · ${indicators.rsi.value.toFixed(1)}`, icon: Activity },
               { id: 'macd' as const, label: `MACD (12,26,9) · ${indicators.macd.histogram >= 0 ? '+' : ''}${indicators.macd.histogram.toFixed(2)}`, icon: BarChart3 },

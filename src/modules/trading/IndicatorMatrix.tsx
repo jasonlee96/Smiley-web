@@ -42,7 +42,7 @@ export default function IndicatorMatrix({ currency, indicators }: Props) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* 6-Card Oscillator & Volatility Telemetry Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+      <div className="trading-telemetry-grid">
         {/* RSI Card */}
         <GlassCard style={{ padding: '14px 16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -246,10 +246,10 @@ export default function IndicatorMatrix({ currency, indicators }: Props) {
       </div>
 
       {/* Two-Column Matrix: Moving Averages + Support/Resistance Price Ladder */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16 }}>
+      <div className="trading-two-col">
         {/* Moving Average Alignment Matrix */}
-        <GlassCard style={{ padding: '18px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <GlassCard style={{ padding: '16px', minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <TrendingUp size={15} color="var(--accent-cyan)" />
               <span style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 14 }}>
@@ -277,21 +277,10 @@ export default function IndicatorMatrix({ currency, indicators }: Props) {
               return (
                 <div
                   key={row.label}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '76px 1fr 90px 76px',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '7px 10px',
-                    borderRadius: 8,
-                    background: 'rgba(255,255,255,0.025)',
-                    border: '1px solid rgba(255,255,255,0.04)',
-                    fontSize: 12,
-                    fontFamily: 'IBM Plex Mono, monospace',
-                  }}
+                  className="trading-ma-row"
                 >
                   <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{row.label}</span>
-                  <span style={{ color: 'var(--text-primary)' }}>
+                  <span style={{ color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {row.value != null ? `${currency} ${fmtPrice(row.value)}` : '—'}
                   </span>
                   <span style={{ textAlign: 'right', color }}>
@@ -302,7 +291,7 @@ export default function IndicatorMatrix({ currency, indicators }: Props) {
                   <span style={{
                     textAlign: 'center',
                     fontSize: 10,
-                    padding: '2px 6px',
+                    padding: '2px 5px',
                     borderRadius: 4,
                     background: isBull
                       ? 'rgba(16,185,129,0.12)'
@@ -321,7 +310,7 @@ export default function IndicatorMatrix({ currency, indicators }: Props) {
         </GlassCard>
 
         {/* Support & Resistance Structural Price Ladder */}
-        <GlassCard style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        <GlassCard style={{ padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minWidth: 0 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

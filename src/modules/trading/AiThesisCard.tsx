@@ -199,7 +199,7 @@ export default function AiThesisCard({ symbol, analysis, onRunClaudeCli, isRunni
         </div>
 
         {/* Entry / Stop / Targets Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+        <div className="trading-setup-grid">
           <div style={{
             padding: '12px 14px',
             borderRadius: 8,
@@ -248,10 +248,7 @@ export default function AiThesisCard({ symbol, analysis, onRunClaudeCli, isRunni
         </div>
 
         {/* Invalidation & Sizing Footer */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: 10,
+        <div className="trading-two-col" style={{
           paddingTop: 8,
           borderTop: '1px solid rgba(255,255,255,0.06)',
           fontSize: 11,
@@ -269,7 +266,7 @@ export default function AiThesisCard({ symbol, analysis, onRunClaudeCli, isRunni
       </div>
 
       {/* Bull Case vs Bear Case */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
+      <div className="trading-two-col">
         {/* Bull Thesis */}
         <div style={{
           padding: '14px 16px',
