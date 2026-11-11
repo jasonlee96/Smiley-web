@@ -91,7 +91,13 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
   const [customCash, setCustomCash] = useState<number>(100)
   const [proposalFilter, setProposalFilter] = useState<'pending' | 'history'>('pending')
   const [selectedTradeEnv, setSelectedTradeEnv] = useState<'SIMULATE' | 'REAL'>('SIMULATE')
+  const [confirmApproveModal, setConfirmApproveModal] = useState<{
+    proposal: TradingOrderProposal
+    targetEnv: 'SIMULATE' | 'REAL'
+    executeOnMoomoo: boolean
+  } | null>(null)
   const { data: walletData } = useBotWallet(selectedTradeEnv)
+  const { data: modalWalletData } = useBotWallet(confirmApproveModal?.targetEnv || selectedTradeEnv)
   const updateWalletMutation = useUpdateBotWallet()
   const [allocInput, setAllocInput] = useState<string>('')
   const [editingAlloc, setEditingAlloc] = useState(false)
@@ -1127,26 +1133,11 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                             type="button"
                             onClick={() => {
                               setGuardrailError(null)
-                              approveProposalMutation.mutate(
-                                {
-                                  id: p.id,
-                                  payload: {
-                                    execute_on_moomoo: false,
-                                    trade_env: p.trade_env || selectedTradeEnv,
-                                    execution_price: p.current_price,
-                                    qty: p.qty,
-                                  },
-                                },
-                                {
-                                  onError: (err: any) => {
-                                    setGuardrailError(
-                                      err?.response?.data?.error ||
-                                        err?.message ||
-                                        'Approval blocked by Bot Allocation Guardrail',
-                                    )
-                                  },
-                                },
-                              )
+                              setConfirmApproveModal({
+                                proposal: p,
+                                targetEnv: p.trade_env || selectedTradeEnv,
+                                executeOnMoomoo: false,
+                              })
                             }}
                             disabled={approveProposalMutation.isPending}
                             style={{
@@ -1168,29 +1159,14 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                               type="button"
                               onClick={() => {
                                 setGuardrailError(null)
-                                approveProposalMutation.mutate(
-                                  {
-                                    id: p.id,
-                                    payload: {
-                                      execute_on_moomoo: true,
-                                      trade_env: 'SIMULATE',
-                                      execution_price: p.current_price,
-                                      qty: p.qty,
-                                    },
-                                  },
-                                  {
-                                    onError: (err: any) => {
-                                      setGuardrailError(
-                                        err?.response?.data?.error ||
-                                          err?.message ||
-                                          'Approval blocked by Bot Allocation Guardrail',
-                                      )
-                                    },
-                                  },
-                                )
+                                setConfirmApproveModal({
+                                  proposal: p,
+                                  targetEnv: 'SIMULATE',
+                                  executeOnMoomoo: true,
+                                })
                               }}
                               disabled={approveProposalMutation.isPending}
-                              title="Execute in Moomoo SIMULATE (Paper Trading Account) using virtual funds"
+                              title="Review & confirm execution in Moomoo SIMULATE (Paper Trading Account) using virtual funds"
                               style={{
                                 padding: '0.45rem 0.75rem',
                                 borderRadius: '0.5rem',
@@ -1214,35 +1190,15 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                             <button
                               type="button"
                               onClick={() => {
-                                const estTotal = (p.qty * p.current_price).toFixed(2)
-                                const ok = window.confirm(
-                                  `💵 CONFIRM LIVE MONEY ORDER (Moomoo REAL Account)\n\nAction: ${p.side} ${p.qty} ${p.symbol}\nLimit Price: ${p.currency} ${p.current_price}\nEst. Total: ${p.currency} ${estTotal}\n\nProceed with REAL order execution on Moomoo?`,
-                                )
-                                if (!ok) return
                                 setGuardrailError(null)
-                                approveProposalMutation.mutate(
-                                  {
-                                    id: p.id,
-                                    payload: {
-                                      execute_on_moomoo: true,
-                                      trade_env: 'REAL',
-                                      execution_price: p.current_price,
-                                      qty: p.qty,
-                                    },
-                                  },
-                                  {
-                                    onError: (err: any) => {
-                                      setGuardrailError(
-                                        err?.response?.data?.error ||
-                                          err?.message ||
-                                          'Approval blocked by Bot Allocation Guardrail',
-                                      )
-                                    },
-                                  },
-                                )
+                                setConfirmApproveModal({
+                                  proposal: p,
+                                  targetEnv: 'REAL',
+                                  executeOnMoomoo: true,
+                                })
                               }}
                               disabled={approveProposalMutation.isPending}
-                              title="Execute in Moomoo REAL (Live Brokerage Account) using real money"
+                              title="Review & confirm execution in Moomoo REAL (Live Brokerage Account) using real money"
                               style={{
                                 padding: '0.45rem 0.75rem',
                                 borderRadius: '0.5rem',
@@ -2891,6 +2847,300 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
           </div>
         </div>
       )}
+
+      {/* ── Order Approval Confirmation Modal (Shows Exact Account & Bot Wallet) ── */}
+      {confirmApproveModal && (() => {
+        const { proposal: p, targetEnv, executeOnMoomoo } = confirmApproveModal
+        const isReal = targetEnv === 'REAL'
+        const isSell = p.side === 'SELL'
+        const estTotal = Number((p.qty * p.current_price).toFixed(2))
+        const resolvedAccId =
+          modalWalletData?.moomoo?.trd_env === targetEnv && modalWalletData?.moomoo?.acc_id
+            ? modalWalletData.moomoo.acc_id
+            : isReal
+              ? '283726806215160563'
+              : '4930511'
+        const availBotBal = modalWalletData?.budget?.available_bot_balance ?? walletData?.budget?.available_bot_balance ?? 0
+        const afterBotBal = isSell ? availBotBal + estTotal : availBotBal - estTotal
+
+        return (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(2, 6, 23, 0.82)',
+              backdropFilter: 'blur(6px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1100,
+              padding: '1rem',
+            }}
+            onClick={() => setConfirmApproveModal(null)}
+          >
+            <div
+              style={{
+                background: '#0f172a',
+                border: isReal ? '2px solid #f59e0b' : '2px solid #38bdf8',
+                borderRadius: '1rem',
+                padding: '1.25rem',
+                width: '100%',
+                maxWidth: '520px',
+                boxShadow: '0 24px 60px rgba(0,0,0,0.65)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.9rem',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header Banner */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  gap: '0.75rem',
+                  padding: '0.75rem 0.9rem',
+                  borderRadius: '0.7rem',
+                  background: isReal
+                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.24), rgba(120, 53, 15, 0.35))'
+                    : 'linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(12, 74, 110, 0.35))',
+                  border: isReal
+                    ? '1px solid rgba(245, 158, 11, 0.6)'
+                    : '1px solid rgba(56, 189, 248, 0.5)',
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 900,
+                      letterSpacing: '0.06em',
+                      color: isReal ? '#fcd34d' : '#7dd3fc',
+                    }}
+                  >
+                    {isReal
+                      ? '💵 CONFIRM REAL ACCOUNT EXECUTION (LIVE MONEY)'
+                      : '🧪 CONFIRM SIMULATE ACCOUNT EXECUTION (PAPER TRADING)'}
+                  </div>
+                  <div style={{ fontSize: '0.98rem', fontWeight: 800, color: '#f8fafc', marginTop: '0.2rem' }}>
+                    {isSell ? '💰 SELL (Take Profit)' : '🟢 BUY'} {fmtUnits(p.qty)} {p.symbol} @ {p.currency}{' '}
+                    {fmtPrice(p.current_price)}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setConfirmApproveModal(null)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    fontSize: '1.1rem',
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Account Details Box */}
+              <div
+                style={{
+                  background: '#090d16',
+                  border: '1px solid #1e293b',
+                  borderRadius: '0.7rem',
+                  padding: '0.85rem 0.95rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.55rem',
+                }}
+              >
+                <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', letterSpacing: '0.05em' }}>
+                  🎯 TARGET ACCOUNT &amp; WALLET DETAILS
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem' }}>
+                  <span style={{ color: '#94a3b8' }}>Execution Environment:</span>
+                  <span
+                    style={{
+                      fontWeight: 900,
+                      color: isReal ? '#fbbf24' : '#38bdf8',
+                      fontFamily: 'monospace',
+                    }}
+                  >
+                    {isReal ? '💵 Moomoo REAL (Live Brokerage)' : '🧪 Moomoo SIMULATE (Paper Trading)'}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem' }}>
+                  <span style={{ color: '#94a3b8' }}>Moomoo Account ID:</span>
+                  <span style={{ fontWeight: 800, color: '#f8fafc', fontFamily: 'monospace' }}>
+                    {executeOnMoomoo
+                      ? `#${resolvedAccId} (${isReal ? 'FUTUSG Universal Margin' : 'Paper Margin Account'})`
+                      : 'Bot Portfolio Ledger Only (Crypto)'}
+                  </span>
+                </div>
+
+                {executeOnMoomoo && modalWalletData?.moomoo?.connected && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.76rem' }}>
+                    <span style={{ color: '#94a3b8' }}>Moomoo Account Cash:</span>
+                    <span style={{ fontWeight: 700, color: '#cbd5e1', fontFamily: 'monospace' }}>
+                      {modalWalletData.moomoo.currency} {fmtPrice(modalWalletData.moomoo.cash)}
+                      {isReal && modalWalletData.moomoo.sg_cash != null && modalWalletData.moomoo.us_cash != null
+                        ? ` (SG: SGD ${fmtPrice(modalWalletData.moomoo.sg_cash)} · US: USD ${fmtPrice(modalWalletData.moomoo.us_cash)})`
+                        : ''}
+                    </span>
+                  </div>
+                )}
+
+                <div
+                  style={{
+                    borderTop: '1px solid #1e293b',
+                    paddingTop: '0.5rem',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '0.78rem',
+                  }}
+                >
+                  <span style={{ color: '#94a3b8' }}>
+                    {isReal ? '💵 REAL Bot Wallet Available:' : '🧪 SIMULATE Bot Wallet Available:'}
+                  </span>
+                  <span style={{ fontWeight: 800, color: '#34d399', fontFamily: 'monospace' }}>
+                    ${fmtPrice(availBotBal)} → Est. After:{' '}
+                    <span style={{ color: afterBotBal >= 0 ? '#6ee7b7' : '#fb7185' }}>
+                      ${fmtPrice(afterBotBal)}
+                    </span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Order Breakdown Box */}
+              <div
+                style={{
+                  background: '#090d16',
+                  border: '1px solid #1e293b',
+                  borderRadius: '0.7rem',
+                  padding: '0.8rem 0.95rem',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: '0.5rem',
+                  fontFamily: 'monospace',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '0.62rem', color: '#64748b', fontWeight: 700 }}>QUANTITY</div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#f8fafc' }}>
+                    {fmtUnits(p.qty)} {p.symbol}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.62rem', color: '#64748b', fontWeight: 700 }}>EXECUTION PRICE</div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#f8fafc' }}>
+                    {p.currency} {fmtPrice(p.current_price)}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.62rem', color: '#64748b', fontWeight: 700 }}>
+                    {isSell ? 'EST. PROCEEDS' : 'EST. TOTAL COST'}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '0.92rem',
+                      fontWeight: 900,
+                      color: isReal ? '#fbbf24' : '#38bdf8',
+                    }}
+                  >
+                    {p.currency} {fmtPrice(estTotal)}
+                  </div>
+                </div>
+              </div>
+
+              {p.trade_env !== targetEnv && (
+                <div
+                  style={{
+                    fontSize: '0.72rem',
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: '0.5rem',
+                    background: 'rgba(56, 189, 248, 0.12)',
+                    border: '1px solid rgba(56, 189, 248, 0.35)',
+                    color: '#bae6fd',
+                  }}
+                >
+                  ℹ️ This proposal was originally staged for <strong>{p.trade_env}</strong>, and you are choosing to execute it in{' '}
+                  <strong>{targetEnv}</strong> (Account #{resolvedAccId}).
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.55rem', marginTop: '0.2rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setConfirmApproveModal(null)}
+                  style={{
+                    padding: '0.52rem 0.95rem',
+                    borderRadius: '0.5rem',
+                    border: '1px solid #334155',
+                    background: 'transparent',
+                    color: '#94a3b8',
+                    fontWeight: 700,
+                    fontSize: '0.76rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={approveProposalMutation.isPending}
+                  onClick={() => {
+                    setGuardrailError(null)
+                    approveProposalMutation.mutate(
+                      {
+                        id: p.id,
+                        payload: {
+                          execute_on_moomoo: executeOnMoomoo,
+                          trade_env: targetEnv,
+                          execution_price: p.current_price,
+                          qty: p.qty,
+                        },
+                      },
+                      {
+                        onSuccess: () => {
+                          setConfirmApproveModal(null)
+                        },
+                        onError: (err: any) => {
+                          setConfirmApproveModal(null)
+                          setGuardrailError(
+                            err?.response?.data?.error ||
+                              err?.message ||
+                              'Approval blocked by Bot Allocation Guardrail',
+                          )
+                        },
+                      },
+                    )
+                  }}
+                  style={{
+                    padding: '0.52rem 1.05rem',
+                    borderRadius: '0.5rem',
+                    border: isReal ? '1px solid #fbbf24' : '1px solid #38bdf8',
+                    background: isReal ? '#f59e0b' : '#0284c7',
+                    color: isReal ? '#090d16' : '#f8fafc',
+                    fontWeight: 900,
+                    fontSize: '0.76rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {approveProposalMutation.isPending
+                    ? 'Executing…'
+                    : isReal
+                      ? `💵 Confirm REAL Order (Acc #${resolvedAccId})`
+                      : `🧪 Confirm SIMULATE Order (Acc #${resolvedAccId})`}
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
