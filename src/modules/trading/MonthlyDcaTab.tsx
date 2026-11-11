@@ -943,6 +943,28 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
                           <span
                             style={{
+                              fontSize: '0.65rem',
+                              fontWeight: 900,
+                              padding: '0.15rem 0.52rem',
+                              borderRadius: '0.32rem',
+                              background:
+                                p.trade_env === 'REAL'
+                                  ? 'rgba(245, 158, 11, 0.24)'
+                                  : 'rgba(56, 189, 248, 0.2)',
+                              border:
+                                p.trade_env === 'REAL'
+                                  ? '1px solid rgba(245, 158, 11, 0.65)'
+                                  : '1px solid rgba(56, 189, 248, 0.55)',
+                              color: p.trade_env === 'REAL' ? '#fde68a' : '#7dd3fc',
+                              fontFamily: 'monospace',
+                            }}
+                          >
+                            {p.trade_env === 'REAL'
+                              ? '💵 STAGED FOR: REAL (LIVE MONEY)'
+                              : '🧪 STAGED FOR: SIMULATE (PAPER)'}
+                          </span>
+                          <span
+                            style={{
                               fontSize: '0.66rem',
                               fontWeight: 900,
                               padding: '0.14rem 0.48rem',
@@ -1051,47 +1073,148 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                           </div>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setGuardrailError(null)
-                            approveProposalMutation.mutate(
-                              {
-                                id: p.id,
-                                payload: {
-                                  execute_on_moomoo: p.asset_type !== 'crypto',
-                                  trade_env: selectedTradeEnv,
-                                  execution_price: p.current_price,
-                                  qty: p.qty,
+                        {p.asset_type === 'crypto' ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setGuardrailError(null)
+                              approveProposalMutation.mutate(
+                                {
+                                  id: p.id,
+                                  payload: {
+                                    execute_on_moomoo: false,
+                                    trade_env: p.trade_env || selectedTradeEnv,
+                                    execution_price: p.current_price,
+                                    qty: p.qty,
+                                  },
                                 },
-                              },
-                              {
-                                onError: (err: any) => {
-                                  setGuardrailError(
-                                    err?.response?.data?.error ||
-                                      err?.message ||
-                                      'Approval blocked by Bot Allocation Guardrail',
-                                  )
+                                {
+                                  onError: (err: any) => {
+                                    setGuardrailError(
+                                      err?.response?.data?.error ||
+                                        err?.message ||
+                                        'Approval blocked by Bot Allocation Guardrail',
+                                    )
+                                  },
                                 },
-                              },
-                            )
-                          }}
-                          disabled={approveProposalMutation.isPending}
-                          style={{
-                            padding: '0.45rem 0.8rem',
-                            borderRadius: '0.5rem',
-                            border: '1px solid #34d399',
-                            background: '#10b981',
-                            color: '#052e16',
-                            fontWeight: 800,
-                            fontSize: '0.74rem',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          {p.asset_type === 'crypto'
-                            ? '✅ Approve & Log DCA'
-                            : `✅ Approve → Moomoo (${selectedTradeEnv})`}
-                        </button>
+                              )
+                            }}
+                            disabled={approveProposalMutation.isPending}
+                            style={{
+                              padding: '0.45rem 0.8rem',
+                              borderRadius: '0.5rem',
+                              border: '1px solid #34d399',
+                              background: '#10b981',
+                              color: '#052e16',
+                              fontWeight: 800,
+                              fontSize: '0.74rem',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            ✅ Approve &amp; Log Crypto DCA
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setGuardrailError(null)
+                                approveProposalMutation.mutate(
+                                  {
+                                    id: p.id,
+                                    payload: {
+                                      execute_on_moomoo: true,
+                                      trade_env: 'SIMULATE',
+                                      execution_price: p.current_price,
+                                      qty: p.qty,
+                                    },
+                                  },
+                                  {
+                                    onError: (err: any) => {
+                                      setGuardrailError(
+                                        err?.response?.data?.error ||
+                                          err?.message ||
+                                          'Approval blocked by Bot Allocation Guardrail',
+                                      )
+                                    },
+                                  },
+                                )
+                              }}
+                              disabled={approveProposalMutation.isPending}
+                              title="Execute in Moomoo SIMULATE (Paper Trading Account) using virtual funds"
+                              style={{
+                                padding: '0.45rem 0.75rem',
+                                borderRadius: '0.5rem',
+                                border:
+                                  p.trade_env === 'SIMULATE'
+                                    ? '2px solid #38bdf8'
+                                    : '1px solid rgba(56, 189, 248, 0.45)',
+                                background:
+                                  p.trade_env === 'SIMULATE'
+                                    ? 'rgba(2, 132, 199, 0.32)'
+                                    : 'rgba(15, 23, 42, 0.9)',
+                                color: '#7dd3fc',
+                                fontWeight: 800,
+                                fontSize: '0.73rem',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              🧪 Approve SIMULATE (Paper)
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const estTotal = (p.qty * p.current_price).toFixed(2)
+                                const ok = window.confirm(
+                                  `💵 CONFIRM LIVE MONEY ORDER (Moomoo REAL Account)\n\nAction: ${p.side} ${p.qty} ${p.symbol}\nLimit Price: ${p.currency} ${p.current_price}\nEst. Total: ${p.currency} ${estTotal}\n\nProceed with REAL order execution on Moomoo?`,
+                                )
+                                if (!ok) return
+                                setGuardrailError(null)
+                                approveProposalMutation.mutate(
+                                  {
+                                    id: p.id,
+                                    payload: {
+                                      execute_on_moomoo: true,
+                                      trade_env: 'REAL',
+                                      execution_price: p.current_price,
+                                      qty: p.qty,
+                                    },
+                                  },
+                                  {
+                                    onError: (err: any) => {
+                                      setGuardrailError(
+                                        err?.response?.data?.error ||
+                                          err?.message ||
+                                          'Approval blocked by Bot Allocation Guardrail',
+                                      )
+                                    },
+                                  },
+                                )
+                              }}
+                              disabled={approveProposalMutation.isPending}
+                              title="Execute in Moomoo REAL (Live Brokerage Account) using real money"
+                              style={{
+                                padding: '0.45rem 0.75rem',
+                                borderRadius: '0.5rem',
+                                border:
+                                  p.trade_env === 'REAL'
+                                    ? '2px solid #fbbf24'
+                                    : '1px solid rgba(245, 158, 11, 0.5)',
+                                background:
+                                  p.trade_env === 'REAL'
+                                    ? 'rgba(245, 158, 11, 0.28)'
+                                    : 'rgba(245, 158, 11, 0.12)',
+                                color: '#fde68a',
+                                fontWeight: 800,
+                                fontSize: '0.73rem',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              💵 Approve REAL (Live)
+                            </button>
+                          </>
+                        )}
 
                         <button
                           type="button"
@@ -1214,6 +1337,26 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                           : isBotCancelled
                             ? '🛑 AUTO-CANCELLED BY BOT (NO LONGER WORTH IT)'
                             : '✕ REJECTED BY USER'}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '0.62rem',
+                          fontWeight: 800,
+                          padding: '0.1rem 0.42rem',
+                          borderRadius: '0.25rem',
+                          background:
+                            p.trade_env === 'REAL'
+                              ? 'rgba(245, 158, 11, 0.2)'
+                              : 'rgba(56, 189, 248, 0.16)',
+                          border:
+                            p.trade_env === 'REAL'
+                              ? '1px solid rgba(245, 158, 11, 0.5)'
+                              : '1px solid rgba(56, 189, 248, 0.4)',
+                          color: p.trade_env === 'REAL' ? '#fde68a' : '#7dd3fc',
+                          fontFamily: 'monospace',
+                        }}
+                      >
+                        {p.trade_env === 'REAL' ? '💵 REAL (LIVE)' : '🧪 SIMULATE (PAPER)'}
                       </span>
                       <strong style={{ color: '#f8fafc', fontFamily: 'monospace' }}>
                         {p.side} {fmtUnits(p.qty)} {p.symbol} ({p.lot_label})
