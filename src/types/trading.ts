@@ -268,6 +268,7 @@ export interface AccumulationEntry {
   asset_type: AssetType
   currency: string
   side?: 'BUY' | 'SELL'
+  trade_env?: 'SIMULATE' | 'REAL'
   units: number
   price_per_unit: number
   total_amount: number
@@ -355,6 +356,7 @@ export interface ProposalsResponse {
 
 export interface BotWalletResponse {
   budget: {
+    trade_env?: 'SIMULATE' | 'REAL'
     allocated_budget: number
     used_budget: number
     sell_proceeds_recycled?: number

@@ -179,11 +179,12 @@ export const tradingApi = {
       .get<BotWalletResponse>('/trading/bot-wallet', { params: trd_env ? { trd_env } : undefined })
       .then((r) => r.data),
 
-  updateBotWallet: (allocated_budget: number) =>
+  updateBotWallet: (payload: number | { allocated_budget: number; trade_env?: 'SIMULATE' | 'REAL' }) =>
     client
-      .put<{ ok: boolean; budget: BotWalletResponse['budget'] }>('/trading/bot-wallet', {
-        allocated_budget,
-      })
+      .put<{ ok: boolean; budget: BotWalletResponse['budget'] }>(
+        '/trading/bot-wallet',
+        typeof payload === 'number' ? { allocated_budget: payload } : payload,
+      )
       .then((r) => r.data),
 
   getMarketDiscovery: (refresh = false) =>

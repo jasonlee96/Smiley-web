@@ -705,11 +705,17 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
               )}
             </div>
 
-            {/* Card 2: Website Bot Allocated Balance (Strict Guardrail) */}
+            {/* Card 2: Website Bot Allocated Balance (Strict Guardrail — Separate per SIMULATE vs REAL) */}
             <div
               style={{
-                background: 'linear-gradient(135deg, rgba(6, 78, 59, 0.22), rgba(9, 13, 22, 0.96))',
-                border: '1px solid rgba(16, 185, 129, 0.4)',
+                background:
+                  selectedTradeEnv === 'REAL'
+                    ? 'linear-gradient(135deg, rgba(120, 53, 15, 0.25), rgba(9, 13, 22, 0.96))'
+                    : 'linear-gradient(135deg, rgba(6, 78, 59, 0.22), rgba(9, 13, 22, 0.96))',
+                border:
+                  selectedTradeEnv === 'REAL'
+                    ? '1px solid rgba(245, 158, 11, 0.5)'
+                    : '1px solid rgba(16, 185, 129, 0.4)',
                 borderRadius: '0.7rem',
                 padding: '0.8rem 0.95rem',
                 display: 'flex',
@@ -718,9 +724,39 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
-                <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#6ee7b7', letterSpacing: '0.05em' }}>
-                  🔒 BOT ALLOCATED WALLET (ONLY TOUCHES THIS BALANCE)
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                  <span
+                    style={{
+                      fontSize: '0.68rem',
+                      fontWeight: 800,
+                      color: selectedTradeEnv === 'REAL' ? '#fcd34d' : '#6ee7b7',
+                      letterSpacing: '0.05em',
+                    }}
+                  >
+                    🔒 BOT ALLOCATED WALLET
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '0.64rem',
+                      fontWeight: 800,
+                      padding: '0.12rem 0.48rem',
+                      borderRadius: '999px',
+                      background:
+                        selectedTradeEnv === 'REAL'
+                          ? 'rgba(245, 158, 11, 0.22)'
+                          : 'rgba(56, 189, 248, 0.18)',
+                      color: selectedTradeEnv === 'REAL' ? '#fbbf24' : '#38bdf8',
+                      border:
+                        selectedTradeEnv === 'REAL'
+                          ? '1px solid rgba(245, 158, 11, 0.55)'
+                          : '1px solid rgba(56, 189, 248, 0.45)',
+                    }}
+                  >
+                    {selectedTradeEnv === 'REAL'
+                      ? '💵 REAL WALLET (LIVE MONEY)'
+                      : '🧪 SIMULATE WALLET (PAPER FUND)'}
+                  </span>
+                </div>
                 {!editingAlloc ? (
                   <button
                     type="button"
@@ -733,13 +769,19 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                       fontWeight: 700,
                       padding: '0.15rem 0.5rem',
                       borderRadius: '0.35rem',
-                      border: '1px solid rgba(16, 185, 129, 0.45)',
-                      background: 'rgba(16, 185, 129, 0.14)',
-                      color: '#34d399',
+                      border:
+                        selectedTradeEnv === 'REAL'
+                          ? '1px solid rgba(245, 158, 11, 0.5)'
+                          : '1px solid rgba(16, 185, 129, 0.45)',
+                      background:
+                        selectedTradeEnv === 'REAL'
+                          ? 'rgba(245, 158, 11, 0.15)'
+                          : 'rgba(16, 185, 129, 0.14)',
+                      color: selectedTradeEnv === 'REAL' ? '#fbbf24' : '#34d399',
                       cursor: 'pointer',
                     }}
                   >
-                    ✎ Set Bot Allocation (${fmtPrice(walletData.budget.allocated_budget)})
+                    ✎ Set {selectedTradeEnv} Allocation (${fmtPrice(walletData.budget.allocated_budget)})
                   </button>
                 ) : (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
@@ -765,7 +807,10 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                       onClick={async () => {
                         const val = parseFloat(allocInput)
                         if (isFinite(val) && val >= 0) {
-                          await updateWalletMutation.mutateAsync(val)
+                          await updateWalletMutation.mutateAsync({
+                            allocated_budget: val,
+                            trade_env: selectedTradeEnv,
+                          })
                           setEditingAlloc(false)
                           setGuardrailError(null)
                         }
@@ -782,7 +827,7 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                         cursor: 'pointer',
                       }}
                     >
-                      Save
+                      Save ({selectedTradeEnv})
                     </button>
                     <button
                       type="button"
@@ -803,7 +848,9 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.45rem' }}>
                 <div>
-                  <div style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 700 }}>ALLOCATED FUND</div>
+                  <div style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 700 }}>
+                    {selectedTradeEnv} ALLOCATED
+                  </div>
                   <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#f8fafc', fontFamily: 'monospace' }}>
                     ${fmtPrice(walletData.budget.allocated_budget)}
                   </div>
@@ -848,7 +895,9 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                 }}
               >
                 <span>
-                  🛡️ <strong>Sell Guardrail:</strong> Bot can <strong>ONLY sell</strong> positions bought by this bot — personal Moomoo holdings are untouchable.
+                  🛡️ <strong>Separate SIMULATE vs REAL Wallets:</strong> Switching the toggle above switches between your{' '}
+                  <strong style={{ color: '#38bdf8' }}>🧪 SIMULATE Paper Wallet</strong> and{' '}
+                  <strong style={{ color: '#fbbf24' }}>💵 REAL Live Wallet</strong>. Paper trades never touch your REAL allocation, and the bot can ONLY sell positions bought by this bot.
                 </span>
                 {(walletData.budget.sell_proceeds_recycled ?? 0) > 0 && (
                   <span style={{ color: '#6ee7b7', fontFamily: 'monospace' }}>
