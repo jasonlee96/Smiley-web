@@ -803,29 +803,58 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.45rem' }}>
                 <div>
-                  <div style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 700 }}>ALLOCATED</div>
+                  <div style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 700 }}>ALLOCATED FUND</div>
                   <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#f8fafc', fontFamily: 'monospace' }}>
                     ${fmtPrice(walletData.budget.allocated_budget)}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 700 }}>USED BY BOT</div>
+                  <div style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 700 }}>DEPLOYED IN BUYS</div>
                   <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#cbd5e1', fontFamily: 'monospace' }}>
                     ${fmtPrice(walletData.budget.used_budget)}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 700 }}>IN PENDING</div>
-                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#fbbf24', fontFamily: 'monospace' }}>
-                    ${fmtPrice(walletData.budget.reserved_pending)}
+                  <div style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 700 }}>REALIZED PROFIT</div>
+                  <div
+                    style={{
+                      fontSize: '0.92rem',
+                      fontWeight: 800,
+                      color: (walletData.budget.realized_profit ?? 0) >= 0 ? '#34d399' : '#fb7185',
+                      fontFamily: 'monospace',
+                    }}
+                  >
+                    {(walletData.budget.realized_profit ?? 0) >= 0 ? '+' : ''}$
+                    {fmtPrice(walletData.budget.realized_profit ?? 0)}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 700 }}>AVAILABLE TO TOUCH</div>
+                  <div style={{ fontSize: '0.6rem', color: '#64748b', fontWeight: 700 }}>AVAILABLE TO BOT</div>
                   <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#34d399', fontFamily: 'monospace' }}>
                     ${fmtPrice(walletData.budget.available_bot_balance)}
                   </div>
                 </div>
+              </div>
+              <div
+                style={{
+                  fontSize: '0.66rem',
+                  color: '#94a3b8',
+                  borderTop: '1px solid rgba(16,185,129,0.2)',
+                  paddingTop: '0.32rem',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '0.4rem',
+                }}
+              >
+                <span>
+                  🛡️ <strong>Sell Guardrail:</strong> Bot can <strong>ONLY sell</strong> positions bought by this bot — personal Moomoo holdings are untouchable.
+                </span>
+                {(walletData.budget.sell_proceeds_recycled ?? 0) > 0 && (
+                  <span style={{ color: '#6ee7b7', fontFamily: 'monospace' }}>
+                    Recycled Proceeds: +${fmtPrice(walletData.budget.sell_proceeds_recycled)}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -918,12 +947,15 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                               fontWeight: 900,
                               padding: '0.14rem 0.48rem',
                               borderRadius: '0.3rem',
-                              background: 'rgba(16, 185, 129, 0.18)',
-                              color: '#34d399',
+                              background:
+                                p.side === 'SELL'
+                                  ? 'rgba(245, 158, 11, 0.22)'
+                                  : 'rgba(16, 185, 129, 0.18)',
+                              color: p.side === 'SELL' ? '#fbbf24' : '#34d399',
                               fontFamily: 'monospace',
                             }}
                           >
-                            {p.side} {fmtUnits(p.qty)} {p.symbol}
+                            {p.side === 'SELL' ? '💰 SELL · TAKE PROFIT' : p.side} {fmtUnits(p.qty)} {p.symbol}
                           </span>
                           <span
                             style={{
@@ -950,6 +982,25 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                               }}
                             >
                               🌟 NEW MARKET PROPOSAL (OUTSIDE WATCHLIST)
+                            </span>
+                          )}
+                          {p.side === 'SELL' && p.realized_pnl != null && (
+                            <span
+                              style={{
+                                fontSize: '0.64rem',
+                                fontWeight: 800,
+                                padding: '0.14rem 0.48rem',
+                                borderRadius: '0.3rem',
+                                background:
+                                  p.realized_pnl >= 0
+                                    ? 'rgba(16, 185, 129, 0.2)'
+                                    : 'rgba(244, 63, 94, 0.2)',
+                                color: p.realized_pnl >= 0 ? '#34d399' : '#fb7185',
+                                fontFamily: 'monospace',
+                              }}
+                            >
+                              Est. Profit: {p.realized_pnl >= 0 ? '+' : ''}
+                              {p.currency} {fmtPrice(p.realized_pnl)} → Recycles to Bot Wallet
                             </span>
                           )}
                           <span
@@ -2182,7 +2233,8 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                   <th style={{ padding: '0.5rem' }}>Total Invested</th>
                   <th style={{ padding: '0.5rem' }}>Market Value</th>
                   <th style={{ padding: '0.5rem' }}>Unrealized P&amp;L</th>
-                  <th style={{ padding: '0.5rem' }}>Tranches</th>
+                  <th style={{ padding: '0.5rem' }}>Realized P&amp;L</th>
+                  <th style={{ padding: '0.5rem' }}>Bot Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -2233,7 +2285,68 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                       {fmtPrice(h.unrealized_pnl)} ({h.unrealized_pnl_pct >= 0 ? '+' : ''}
                       {h.unrealized_pnl_pct.toFixed(2)}%)
                     </td>
-                    <td style={{ padding: '0.55rem 0.5rem', color: '#94a3b8' }}>{h.tranche_count}×</td>
+                    <td
+                      style={{
+                        padding: '0.55rem 0.5rem',
+                        fontFamily: 'monospace',
+                        fontWeight: 700,
+                        color: (h.realized_pnl ?? 0) >= 0 ? '#34d399' : '#fb7185',
+                      }}
+                    >
+                      {(h.realized_pnl ?? 0) >= 0 ? '+' : ''}
+                      {fmtPrice(h.realized_pnl ?? 0)}
+                    </td>
+                    <td style={{ padding: '0.55rem 0.5rem' }}>
+                      {(h.sellable_units ?? h.total_units) > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const sellQty = h.sellable_units ?? h.total_units
+                            setGuardrailError(null)
+                            createProposalMutation.mutate(
+                              {
+                                symbol: h.symbol,
+                                name: h.name,
+                                asset_type: h.asset_type,
+                                currency: h.currency,
+                                side: 'SELL',
+                                qty: sellQty,
+                                proposed_price: h.current_price,
+                                lot_label: `Bot Holding (${fmtUnits(sellQty)} sh)`,
+                                trade_env: selectedTradeEnv,
+                                proposed_dca_score: 50,
+                                proposed_signal: 'sell',
+                                proposal_reason: `Take-profit SELL on ${fmtUnits(sellQty)} bot-owned ${h.symbol} (avg cost ${h.currency} ${fmtPrice(h.avg_cost)} → live ${h.currency} ${fmtPrice(h.current_price)}, P&L ${h.unrealized_pnl >= 0 ? '+' : ''}${h.currency} ${fmtPrice(h.unrealized_pnl)}). Proceeds & profit recycle into Bot Wallet.`,
+                              },
+                              {
+                                onError: (err: any) => {
+                                  setGuardrailError(
+                                    err?.response?.data?.error ||
+                                      err?.message ||
+                                      'Failed to stage bot SELL proposal',
+                                  )
+                                },
+                              },
+                            )
+                          }}
+                          disabled={createProposalMutation.isPending}
+                          style={{
+                            padding: '0.28rem 0.55rem',
+                            borderRadius: '0.38rem',
+                            border: '1px solid rgba(245, 158, 11, 0.45)',
+                            background: 'rgba(245, 158, 11, 0.14)',
+                            color: '#fbbf24',
+                            fontSize: '0.68rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          💰 Stage Bot SELL
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: '0.68rem', color: '#64748b' }}>Closed</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

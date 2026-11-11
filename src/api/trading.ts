@@ -136,6 +136,7 @@ export const tradingApi = {
     name?: string
     asset_type?: AssetType
     currency?: string
+    side?: 'BUY' | 'SELL'
     qty: number
     proposed_price: number
     lot_label?: string

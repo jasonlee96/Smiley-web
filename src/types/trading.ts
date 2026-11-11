@@ -267,9 +267,11 @@ export interface AccumulationEntry {
   symbol: string
   asset_type: AssetType
   currency: string
+  side?: 'BUY' | 'SELL'
   units: number
   price_per_unit: number
   total_amount: number
+  realized_pnl?: number | null
   lot_label: string
   bought_at: string
   notes: string | null
@@ -282,12 +284,16 @@ export interface AccumulationHolding {
   asset_type: AssetType
   currency: string
   total_units: number
+  bought_units?: number
+  sold_units?: number
+  sellable_units?: number
   total_invested: number
   avg_cost: number
   current_price: number
   market_value: number
   unrealized_pnl: number
   unrealized_pnl_pct: number
+  realized_pnl?: number
   tranche_count: number
   last_bought_at: string
   below_avg_cost: boolean
@@ -299,6 +305,7 @@ export interface AccumulationsResponse {
     total_market_value: number
     total_unrealized_pnl: number
     total_unrealized_pnl_pct: number
+    total_realized_pnl?: number
     total_tranches: number
     holdings_count: number
   }
@@ -323,7 +330,7 @@ export interface TradingOrderProposal {
   proposed_rsi: number | null
   proposed_signal: string
   proposal_reason: string
-  source: 'bot_hourly' | 'bot_discovery' | 'manual'
+  source: 'bot_hourly' | 'bot_discovery' | 'bot_take_profit' | 'manual'
   status: 'pending_approval' | 'executed' | 'cancelled_bot_stale' | 'rejected_user' | 'failed'
   still_worth_it: boolean
   bot_review_count: number
@@ -331,6 +338,8 @@ export interface TradingOrderProposal {
   current_dca_score: number
   current_rsi: number | null
   price_drift_pct: number
+  avg_cost_basis?: number | null
+  realized_pnl?: number | null
   last_bot_review_note: string | null
   last_bot_review_at: string | null
   moomoo_order_id: string | null
@@ -348,6 +357,8 @@ export interface BotWalletResponse {
   budget: {
     allocated_budget: number
     used_budget: number
+    sell_proceeds_recycled?: number
+    realized_profit?: number
     reserved_pending: number
     available_bot_balance: number
     unreserved_bot_balance: number
