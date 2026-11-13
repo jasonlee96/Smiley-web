@@ -578,7 +578,7 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                   color: proposalFilter === 'history' ? '#f8fafc' : '#64748b',
                 }}
               >
-                History / Bot-Cancelled ({historyProposals.length})
+                📜 Execution History ({historyProposals.length})
               </button>
             </div>
 
@@ -1307,6 +1307,7 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
             {historyProposals.map((p) => {
               const isExecuted = p.status === 'executed'
               const isBotCancelled = p.status === 'cancelled_bot_stale'
+              const isFailed = p.status === 'failed'
               return (
                 <div
                   key={p.id}
@@ -1314,7 +1315,7 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                     padding: '0.55rem 0.75rem',
                     borderRadius: '0.5rem',
                     background: '#090d16',
-                    border: '1px solid #1e293b',
+                    border: isFailed ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid #1e293b',
                     fontSize: '0.74rem',
                     display: 'flex',
                     flexDirection: 'column',
@@ -1331,17 +1332,22 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                           borderRadius: '0.25rem',
                           background: isExecuted
                             ? 'rgba(16, 185, 129, 0.18)'
-                            : isBotCancelled
-                              ? 'rgba(245, 158, 11, 0.18)'
-                              : 'rgba(148, 163, 184, 0.14)',
-                          color: isExecuted ? '#34d399' : isBotCancelled ? '#fbbf24' : '#94a3b8',
+                            : isFailed
+                              ? 'rgba(239, 68, 68, 0.2)'
+                              : isBotCancelled
+                                ? 'rgba(245, 158, 11, 0.18)'
+                                : 'rgba(148, 163, 184, 0.14)',
+                          color: isExecuted ? '#34d399' : isFailed ? '#f87171' : isBotCancelled ? '#fbbf24' : '#94a3b8',
+                          border: isFailed ? '1px solid rgba(239, 68, 68, 0.4)' : undefined,
                         }}
                       >
                         {isExecuted
                           ? '✅ APPROVED & EXECUTED'
-                          : isBotCancelled
-                            ? '🛑 AUTO-CANCELLED BY BOT (NO LONGER WORTH IT)'
-                            : '✕ REJECTED BY USER'}
+                          : isFailed
+                            ? '❌ ORDER FAILED / REJECTED'
+                            : isBotCancelled
+                              ? '🛑 AUTO-CANCELLED BY BOT (NO LONGER WORTH IT)'
+                              : '✕ REJECTED BY USER'}
                       </span>
                       <span
                         style={{
@@ -1369,6 +1375,21 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                       <span style={{ color: '#94a3b8', fontFamily: 'monospace' }}>
                         @ {p.currency} {fmtPrice(p.current_price || p.proposed_price)}
                       </span>
+                      {p.moomoo_order_id && (
+                        <span
+                          style={{
+                            fontSize: '0.64rem',
+                            padding: '0.1rem 0.35rem',
+                            borderRadius: '0.2rem',
+                            background: 'rgba(16, 185, 129, 0.12)',
+                            color: '#6ee7b7',
+                            border: '1px solid rgba(16, 185, 129, 0.3)',
+                            fontFamily: 'monospace',
+                          }}
+                        >
+                          Moomoo #{p.moomoo_order_id}
+                        </span>
+                      )}
                     </div>
                     {p.reviewed_at && (
                       <span style={{ fontSize: '0.68rem', color: '#64748b', fontFamily: 'monospace' }}>
@@ -1377,7 +1398,7 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                     )}
                   </div>
                   {(p.execution_note || p.last_bot_review_note) && (
-                    <div style={{ fontSize: '0.71rem', color: isBotCancelled ? '#fde68a' : '#94a3b8' }}>
+                    <div style={{ fontSize: '0.71rem', color: isFailed ? '#fca5a5' : isBotCancelled ? '#fde68a' : '#94a3b8' }}>
                       {p.execution_note || p.last_bot_review_note}
                     </div>
                   )}
@@ -2505,10 +2526,10 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
         {/* Recent Tranche Entries Log */}
         {entries.length > 0 && (
           <div style={{ marginTop: '0.4rem' }}>
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', marginBottom: '0.45rem' }}>
-              RECENT MONTHLY BUY LOG ({entries.length})
+            <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#94a3b8', marginBottom: '0.45rem', letterSpacing: '0.04em' }}>
+              📜 BOT EXECUTED TRADE &amp; ACCUMULATION LOG ({entries.length})
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: '220px', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: '240px', overflowY: 'auto' }}>
               {entries.map((e) => (
                 <div
                   key={e.id}
@@ -2527,6 +2548,40 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', flexWrap: 'wrap' }}>
                     <span style={{ color: '#64748b', fontFamily: 'monospace' }}>{e.bought_at}</span>
+                    <span
+                      style={{
+                        fontSize: '0.64rem',
+                        fontWeight: 900,
+                        padding: '0.1rem 0.42rem',
+                        borderRadius: '0.25rem',
+                        background:
+                          e.side === 'SELL'
+                            ? 'rgba(245, 158, 11, 0.22)'
+                            : 'rgba(16, 185, 129, 0.18)',
+                        color: e.side === 'SELL' ? '#fbbf24' : '#34d399',
+                        fontFamily: 'monospace',
+                      }}
+                    >
+                      {e.side === 'SELL' ? '💰 SELL' : '🟢 BUY'}
+                    </span>
+                    {e.trade_env && (
+                      <span
+                        style={{
+                          fontSize: '0.62rem',
+                          fontWeight: 800,
+                          padding: '0.1rem 0.38rem',
+                          borderRadius: '0.25rem',
+                          background:
+                            e.trade_env === 'REAL'
+                              ? 'rgba(245, 158, 11, 0.2)'
+                              : 'rgba(56, 189, 248, 0.16)',
+                          color: e.trade_env === 'REAL' ? '#fde68a' : '#7dd3fc',
+                          fontFamily: 'monospace',
+                        }}
+                      >
+                        {e.trade_env === 'REAL' ? '💵 REAL' : '🧪 SIMULATE'}
+                      </span>
+                    )}
                     <strong style={{ color: '#f8fafc', fontFamily: 'monospace' }}>{e.symbol}</strong>
                     <span
                       style={{
@@ -2546,6 +2601,24 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                         {e.currency} {fmtPrice(e.total_amount)}
                       </strong>
                     </span>
+                    {e.side === 'SELL' && e.realized_pnl != null && (
+                      <span
+                        style={{
+                          fontSize: '0.65rem',
+                          fontWeight: 800,
+                          padding: '0.1rem 0.4rem',
+                          borderRadius: '0.25rem',
+                          background:
+                            e.realized_pnl >= 0
+                              ? 'rgba(16, 185, 129, 0.2)'
+                              : 'rgba(244, 63, 94, 0.2)',
+                          color: e.realized_pnl >= 0 ? '#34d399' : '#fb7185',
+                          fontFamily: 'monospace',
+                        }}
+                      >
+                        P&L: {e.realized_pnl >= 0 ? '+' : ''}${fmtPrice(e.realized_pnl)}
+                      </span>
+                    )}
                     {e.notes && <span style={{ color: '#64748b' }}>· {e.notes}</span>}
                   </div>
                   <button
