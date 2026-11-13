@@ -198,6 +198,7 @@ export interface TradingMonitorSettings {
   notify_key_levels: boolean
   notify_extreme_rsi: boolean
   notify_price_targets: boolean
+  scan_markets?: string[]
 }
 
 export interface SnapshotHistoryItem {
@@ -284,6 +285,7 @@ export interface AccumulationHolding {
   name: string
   asset_type: AssetType
   currency: string
+  trade_env?: 'SIMULATE' | 'REAL'
   total_units: number
   bought_units?: number
   sold_units?: number

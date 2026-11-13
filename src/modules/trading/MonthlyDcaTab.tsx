@@ -2396,6 +2396,7 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
               <thead>
                 <tr style={{ borderBottom: '1px solid #1e293b', color: '#64748b', textAlign: 'left' }}>
                   <th style={{ padding: '0.5rem' }}>Ticker</th>
+                  <th style={{ padding: '0.5rem' }}>Account / Env</th>
                   <th style={{ padding: '0.5rem' }}>Units Held</th>
                   <th style={{ padding: '0.5rem' }}>Your Avg Cost</th>
                   <th style={{ padding: '0.5rem' }}>Live Price</th>
@@ -2412,6 +2413,28 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                     <td style={{ padding: '0.55rem 0.5rem', fontWeight: 800, color: '#f8fafc', fontFamily: 'monospace' }}>
                       {h.symbol}{' '}
                       <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 500 }}>{h.name}</span>
+                    </td>
+                    <td style={{ padding: '0.55rem 0.5rem' }}>
+                      <span
+                        style={{
+                          fontSize: '0.62rem',
+                          fontWeight: 800,
+                          padding: '0.12rem 0.42rem',
+                          borderRadius: '0.25rem',
+                          background:
+                            h.trade_env === 'REAL'
+                              ? 'rgba(245, 158, 11, 0.2)'
+                              : 'rgba(56, 189, 248, 0.16)',
+                          border:
+                            h.trade_env === 'REAL'
+                              ? '1px solid rgba(245, 158, 11, 0.5)'
+                              : '1px solid rgba(56, 189, 248, 0.4)',
+                          color: h.trade_env === 'REAL' ? '#fde68a' : '#7dd3fc',
+                          fontFamily: 'monospace',
+                        }}
+                      >
+                        {h.trade_env === 'REAL' ? '💵 REAL' : '🧪 SIMULATE'}
+                      </span>
                     </td>
                     <td style={{ padding: '0.55rem 0.5rem', fontFamily: 'monospace', color: '#e2e8f0' }}>
                       {fmtUnits(h.total_units)}

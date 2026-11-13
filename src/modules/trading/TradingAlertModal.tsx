@@ -67,6 +67,7 @@ export default function TradingAlertModal({
     notify_key_levels: true,
     notify_extreme_rsi: true,
     notify_price_targets: true,
+    scan_markets: ['US', 'SGX', 'CRYPTO'],
   })
   const [targetEdits, setTargetEdits] = useState<
     Record<number, { above: string; below: string; enabled: boolean; saved?: boolean }>
@@ -604,6 +605,56 @@ export default function TradingAlertModal({
                       </div>
                     </label>
                   ))}
+                </div>
+
+                {/* Target Markets Filter */}
+                <div style={{ paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+                    Allowed Scan Markets (Bot Scans & Pre-Approval Staging)
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>
+                    Only tickers and new market discoveries belonging to selected markets will be monitored and staged:
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                    {[
+                      { code: 'US', label: '🇺🇸 US Stocks & ETFs (Moomoo US)' },
+                      { code: 'SGX', label: '🇸🇬 Singapore SGX Stocks & REITs' },
+                      { code: 'CRYPTO', label: '🪙 Crypto (BTC, ETH, etc.)' },
+                    ].map((m) => {
+                      const current = form.scan_markets || ['US', 'SGX', 'CRYPTO']
+                      const checked = current.includes(m.code)
+                      return (
+                        <label
+                          key={m.code}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            padding: '6px 12px',
+                            borderRadius: 6,
+                            background: checked ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255,255,255,0.02)',
+                            border: checked ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid var(--border)',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: checked ? '#7dd3fc' : 'var(--text-secondary)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              const next = e.target.checked
+                                ? Array.from(new Set([...current, m.code]))
+                                : current.filter((x) => x !== m.code)
+                              setForm((f) => ({ ...f, scan_markets: next.length > 0 ? next : [m.code] }))
+                            }}
+                          />
+                          {m.label}
+                        </label>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
 
