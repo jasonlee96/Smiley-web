@@ -353,67 +353,77 @@ export default function QuantPage() {
       </div>
 
       {/* Phase 1: Online RL Contextual Bandit Policy & Macro Regime Context */}
-      {rlStatusQ.data && (
+      {rlStatusQ.data?.policy && (
         <GlassCard style={{
           padding: '16px 20px',
           border: '1px solid rgba(6,182,212,0.25)',
           background: 'linear-gradient(135deg, rgba(6,182,212,0.05) 0%, rgba(16,185,129,0.02) 100%)',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Sparkles size={16} color="var(--accent-cyan)" />
-              <span style={{ fontFamily: 'Syne', fontWeight: 700, fontSize: 15 }}>
-                Phase 1: Online RL Decision Policy &amp; Macro Regime Context
-              </span>
-              <span style={{
-                fontSize: 10,
-                fontWeight: 700,
-                padding: '2px 7px',
-                borderRadius: 4,
-                background: 'rgba(16,185,129,0.15)',
-                color: 'var(--accent-green)',
-                border: '1px solid rgba(16,185,129,0.3)',
-              }}>
-                POLICY v{rlStatusQ.data.policy.policy_version} · $0 API COST
-              </span>
-            </div>
+          {(() => {
+            const pol = rlStatusQ.data.policy
+            const versionLabel = pol.version ?? pol.policy_version ?? '1.0'
+            const episodesTrained = pol.total_episodes ?? pol.episodes_trained ?? 0
+            const winRatePct = Number(pol.win_rate_pct ?? 0)
+            const cumReward = Number(pol.cumulative_reward_pct ?? pol.cumulative_reward ?? 0)
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Sparkles size={16} color="var(--accent-cyan)" />
+                  <span style={{ fontFamily: 'Syne', fontWeight: 700, fontSize: 15 }}>
+                    Phase 1: Online RL Decision Policy &amp; Macro Regime Context
+                  </span>
+                  <span style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    padding: '2px 7px',
+                    borderRadius: 4,
+                    background: 'rgba(16,185,129,0.15)',
+                    color: 'var(--accent-green)',
+                    border: '1px solid rgba(16,185,129,0.3)',
+                  }}>
+                    POLICY v{versionLabel} · $0 API COST
+                  </span>
+                </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 12, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
-              <span>
-                Episodes Trained:{' '}
-                <strong style={{ fontFamily: 'IBM Plex Mono', color: 'var(--text-primary)' }}>
-                  {rlStatusQ.data.policy.episodes_trained}
-                </strong>
-              </span>
-              <span>
-                RL Episode Win Rate:{' '}
-                <strong style={{
-                  fontFamily: 'IBM Plex Mono',
-                  color: rlStatusQ.data.policy.win_rate_pct >= 50 ? 'var(--accent-green)' : 'var(--accent-amber)',
-                }}>
-                  {rlStatusQ.data.policy.win_rate_pct.toFixed(1)}%
-                </strong>
-              </span>
-              <span>
-                Cumulative Reward:{' '}
-                <strong style={{
-                  fontFamily: 'IBM Plex Mono',
-                  color: rlStatusQ.data.policy.cumulative_reward >= 0 ? 'var(--accent-green)' : 'var(--accent-red)',
-                }}>
-                  {rlStatusQ.data.policy.cumulative_reward >= 0 ? '+' : ''}
-                  {rlStatusQ.data.policy.cumulative_reward.toFixed(2)}
-                </strong>
-              </span>
-            </div>
-          </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 12, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+                  <span>
+                    Episodes Trained:{' '}
+                    <strong style={{ fontFamily: 'IBM Plex Mono', color: 'var(--text-primary)' }}>
+                      {episodesTrained}
+                    </strong>
+                  </span>
+                  <span>
+                    RL Episode Win Rate:{' '}
+                    <strong style={{
+                      fontFamily: 'IBM Plex Mono',
+                      color: winRatePct >= 50 ? 'var(--accent-green)' : 'var(--accent-amber)',
+                    }}>
+                      {winRatePct.toFixed(1)}%
+                    </strong>
+                  </span>
+                  <span>
+                    Cumulative Reward:{' '}
+                    <strong style={{
+                      fontFamily: 'IBM Plex Mono',
+                      color: cumReward >= 0 ? 'var(--accent-green)' : 'var(--accent-red)',
+                    }}>
+                      {cumReward >= 0 ? '+' : ''}
+                      {cumReward.toFixed(2)}%
+                    </strong>
+                  </span>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* 3 Macro Regime Cards (US, SGX, CRYPTO) */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
             {(['US', 'SGX', 'CRYPTO'] as const).map((bucket) => {
               const reg = rlStatusQ.data?.regimes?.[bucket]
               if (!reg) return null
-              const isRiskOn = reg.regime === 'risk_on'
-              const isRiskOff = reg.regime === 'risk_off'
+              const regimeStr = String(reg.regime || 'neutral')
+              const isRiskOn = regimeStr === 'risk_on'
+              const isRiskOff = regimeStr.startsWith('risk_off')
               const badgeColor = isRiskOn
                 ? 'var(--accent-green)'
                 : isRiskOff
@@ -424,6 +434,13 @@ export default function QuantPage() {
                 : isRiskOff
                   ? 'rgba(239,68,68,0.14)'
                   : 'rgba(245,158,11,0.14)'
+
+              const ret5d = reg.benchmark_return_5d ?? reg.benchmark_return_5d_pct ?? 0
+              const ret20d = reg.benchmark_return_20d ?? reg.benchmark_return_20d_pct ?? 0
+              const rsiVal = Number(reg.benchmark_rsi ?? 50)
+              const vixVal = reg.vix_level != null ? Number(reg.vix_level) : null
+              const tnxVal = (reg.tnx_yield ?? reg.us10y_yield) != null ? Number(reg.tnx_yield ?? reg.us10y_yield) : null
+              const summaryText = reg.summary || reg.summary_note || `${bucket} benchmark regime active.`
 
               return (
                 <div
@@ -440,7 +457,7 @@ export default function QuantPage() {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.04em' }}>
-                      {bucket} REGIME ({reg.benchmark_symbol})
+                      {bucket} REGIME ({reg.benchmark_symbol || bucket})
                     </span>
                     <span style={{
                       fontSize: 10,
@@ -451,18 +468,18 @@ export default function QuantPage() {
                       color: badgeColor,
                       textTransform: 'uppercase',
                     }}>
-                      {reg.regime.replace(/_/g, ' ')}
+                      {regimeStr.replace(/_/g, ' ')}
                     </span>
                   </div>
                   <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.45, margin: 0 }}>
-                    {reg.summary_note}
+                    {summaryText}
                   </p>
                   <div style={{ display: 'flex', gap: 10, fontSize: 10, color: 'var(--text-muted)', fontFamily: 'IBM Plex Mono', marginTop: 2, flexWrap: 'wrap' }}>
-                    <span>5d: {fmtPct(reg.benchmark_return_5d_pct)}</span>
-                    <span>20d: {fmtPct(reg.benchmark_return_20d_pct)}</span>
-                    <span>RSI: {reg.benchmark_rsi.toFixed(1)}</span>
-                    {reg.vix_level != null && <span>VIX: {reg.vix_level.toFixed(1)}</span>}
-                    {reg.us10y_yield != null && <span>10Y: {reg.us10y_yield.toFixed(2)}%</span>}
+                    <span>5d: {fmtPct(ret5d)}</span>
+                    <span>20d: {fmtPct(ret20d)}</span>
+                    <span>RSI: {rsiVal.toFixed(1)}</span>
+                    {vixVal != null && <span>VIX: {vixVal.toFixed(1)}</span>}
+                    {tnxVal != null && <span>10Y: {tnxVal.toFixed(2)}%</span>}
                   </div>
                 </div>
               )

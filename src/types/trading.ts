@@ -414,30 +414,40 @@ export interface MarketDiscoveryItem {
 }
 
 export interface MarketRegimeSnapshot {
-  market_bucket: 'US' | 'SGX' | 'CRYPTO'
-  regime: 'risk_on' | 'neutral' | 'risk_off' | 'panic_capitulation'
+  market: 'US' | 'SGX' | 'CRYPTO'
+  regime: 'risk_on' | 'neutral' | 'risk_off' | 'risk_off_caution' | 'panic_capitulation'
   regime_score: number
   regime_label: string
   benchmark_symbol: string
   benchmark_price: number
-  benchmark_change_1d_pct: number
-  benchmark_return_5d_pct: number
-  benchmark_return_20d_pct: number
+  benchmark_return_5d: number
+  benchmark_return_20d: number
+  benchmark_return_5d_pct?: number
+  benchmark_return_20d_pct?: number
   benchmark_above_sma50: boolean
   benchmark_above_sma200: boolean
   benchmark_rsi: number
   vix_level: number | null
-  us10y_yield: number | null
-  summary_note: string
+  tnx_yield: number | null
+  us10y_yield?: number | null
+  summary: string
+  summary_note?: string
   fetched_at: string
 }
 
 export interface RlStatusResponse {
   policy: {
-    policy_version: number
-    episodes_trained: number
-    cumulative_reward: number
+    policy_key?: string
+    version?: string
+    policy_version?: number | string
+    total_episodes?: number
+    episodes_trained?: number
+    win_episodes?: number
+    loss_episodes?: number
     win_rate_pct: number
+    avg_reward_pct?: number
+    cumulative_reward_pct?: number
+    cumulative_reward?: number
     weights: Record<string, number>
   }
   regimes: {
