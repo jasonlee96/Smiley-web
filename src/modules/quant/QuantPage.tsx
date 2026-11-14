@@ -70,6 +70,14 @@ export default function QuantPage() {
   const reviewMut = useBotProposalReview()
 
   const allProposals: TradingOrderProposal[] = proposalsQ.data?.proposals ?? []
+  const simCount = useMemo(
+    () => allProposals.filter(p => (p.trade_env || 'SIMULATE') === 'SIMULATE').length,
+    [allProposals],
+  )
+  const realCount = useMemo(
+    () => allProposals.filter(p => p.trade_env === 'REAL').length,
+    [allProposals],
+  )
   const proposals: TradingOrderProposal[] = useMemo(() => {
     if (envFilter === 'ALL') return allProposals
     return allProposals.filter(p => (p.trade_env || 'SIMULATE') === envFilter)
@@ -228,6 +236,52 @@ export default function QuantPage() {
 
         {/* Action Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {/* Top-level Environment Switcher (ALL / SIMULATE / REAL) */}
+          <div style={{
+            display: 'inline-flex',
+            gap: 4,
+            background: 'var(--bg-secondary)',
+            padding: 4,
+            borderRadius: 8,
+            border: '1px solid var(--border)',
+          }}>
+            {(['ALL', 'SIMULATE', 'REAL'] as EnvFilter[]).map(env => (
+              <button
+                key={`top-${env}`}
+                type="button"
+                style={{
+                  padding: '5px 12px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  borderRadius: 6,
+                  border: envFilter === env
+                    ? env === 'REAL'
+                      ? '1px solid rgba(245,158,11,0.45)'
+                      : '1px solid rgba(6,182,212,0.45)'
+                    : '1px solid transparent',
+                  cursor: 'pointer',
+                  background: envFilter === env
+                    ? env === 'REAL'
+                      ? 'rgba(245,158,11,0.18)'
+                      : 'rgba(6,182,212,0.18)'
+                    : 'transparent',
+                  color: envFilter === env
+                    ? env === 'REAL'
+                      ? 'var(--accent-amber)'
+                      : 'var(--accent-cyan)'
+                    : 'var(--text-muted)',
+                }}
+                onClick={() => setEnvFilter(env)}
+              >
+                {env === 'ALL'
+                  ? `All Envs (${allProposals.length})`
+                  : env === 'SIMULATE'
+                    ? `🧪 SIMULATE (${simCount})`
+                    : `💵 REAL (${realCount})`}
+              </button>
+            ))}
+          </div>
+
           <button
             className="btn-ghost"
             style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '7px 14px' }}
