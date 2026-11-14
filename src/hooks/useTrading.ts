@@ -203,6 +203,7 @@ export function useBotProposalReview() {
       qc.invalidateQueries({ queryKey: ['trading', 'proposals'] })
       qc.invalidateQueries({ queryKey: ['trading', 'dca-ranking'] })
       qc.invalidateQueries({ queryKey: ['trading', 'bot-wallet'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'rl-status'] })
     },
   })
 }
@@ -270,5 +271,13 @@ export function useRefreshMarketDiscovery() {
     onSuccess: (data) => {
       qc.setQueryData(['trading', 'market-discovery'], data)
     },
+  })
+}
+
+export function useRlStatus() {
+  return useQuery({
+    queryKey: ['trading', 'rl-status'],
+    queryFn: tradingApi.getRlStatus,
+    refetchInterval: 120000,
   })
 }

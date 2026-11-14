@@ -14,6 +14,7 @@ import type {
   ProposalsResponse,
   BotWalletResponse,
   MarketDiscoveryItem,
+  RlStatusResponse,
 } from '../types/trading'
 
 export const tradingApi = {
@@ -194,4 +195,7 @@ export const tradingApi = {
         timeout: 45000,
       })
       .then((r) => r.data),
+
+  getRlStatus: () =>
+    client.get<RlStatusResponse>('/trading/rl-status', { timeout: 30000 }).then((r) => r.data),
 }

@@ -37,6 +37,7 @@ import {
   useTradingProposals,
   useTradingWatchlist,
   useBotProposalReview,
+  useRlStatus,
 } from '../../hooks/useTrading'
 import type { TradingOrderProposal } from '../../types/trading'
 
@@ -63,6 +64,7 @@ export default function QuantPage() {
 
   const proposalsQ = useTradingProposals()
   const watchlistQ = useTradingWatchlist()
+  const rlStatusQ = useRlStatus()
   const reviewMut = useBotProposalReview()
 
   const proposals: TradingOrderProposal[] = proposalsQ.data?.proposals ?? []
@@ -237,6 +239,7 @@ export default function QuantPage() {
             onClick={() => {
               proposalsQ.refetch()
               watchlistQ.refetch()
+              rlStatusQ.refetch()
             }}
             title="Refresh latest data"
           >
@@ -348,6 +351,125 @@ export default function QuantPage() {
           </p>
         </GlassCard>
       </div>
+
+      {/* Phase 1: Online RL Contextual Bandit Policy & Macro Regime Context */}
+      {rlStatusQ.data && (
+        <GlassCard style={{
+          padding: '16px 20px',
+          border: '1px solid rgba(6,182,212,0.25)',
+          background: 'linear-gradient(135deg, rgba(6,182,212,0.05) 0%, rgba(16,185,129,0.02) 100%)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Sparkles size={16} color="var(--accent-cyan)" />
+              <span style={{ fontFamily: 'Syne', fontWeight: 700, fontSize: 15 }}>
+                Phase 1: Online RL Decision Policy &amp; Macro Regime Context
+              </span>
+              <span style={{
+                fontSize: 10,
+                fontWeight: 700,
+                padding: '2px 7px',
+                borderRadius: 4,
+                background: 'rgba(16,185,129,0.15)',
+                color: 'var(--accent-green)',
+                border: '1px solid rgba(16,185,129,0.3)',
+              }}>
+                POLICY v{rlStatusQ.data.policy.policy_version} · $0 API COST
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 12, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+              <span>
+                Episodes Trained:{' '}
+                <strong style={{ fontFamily: 'IBM Plex Mono', color: 'var(--text-primary)' }}>
+                  {rlStatusQ.data.policy.episodes_trained}
+                </strong>
+              </span>
+              <span>
+                RL Episode Win Rate:{' '}
+                <strong style={{
+                  fontFamily: 'IBM Plex Mono',
+                  color: rlStatusQ.data.policy.win_rate_pct >= 50 ? 'var(--accent-green)' : 'var(--accent-amber)',
+                }}>
+                  {rlStatusQ.data.policy.win_rate_pct.toFixed(1)}%
+                </strong>
+              </span>
+              <span>
+                Cumulative Reward:{' '}
+                <strong style={{
+                  fontFamily: 'IBM Plex Mono',
+                  color: rlStatusQ.data.policy.cumulative_reward >= 0 ? 'var(--accent-green)' : 'var(--accent-red)',
+                }}>
+                  {rlStatusQ.data.policy.cumulative_reward >= 0 ? '+' : ''}
+                  {rlStatusQ.data.policy.cumulative_reward.toFixed(2)}
+                </strong>
+              </span>
+            </div>
+          </div>
+
+          {/* 3 Macro Regime Cards (US, SGX, CRYPTO) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+            {(['US', 'SGX', 'CRYPTO'] as const).map((bucket) => {
+              const reg = rlStatusQ.data?.regimes?.[bucket]
+              if (!reg) return null
+              const isRiskOn = reg.regime === 'risk_on'
+              const isRiskOff = reg.regime === 'risk_off'
+              const badgeColor = isRiskOn
+                ? 'var(--accent-green)'
+                : isRiskOff
+                  ? 'var(--accent-red)'
+                  : 'var(--accent-amber)'
+              const badgeBg = isRiskOn
+                ? 'rgba(16,185,129,0.14)'
+                : isRiskOff
+                  ? 'rgba(239,68,68,0.14)'
+                  : 'rgba(245,158,11,0.14)'
+
+              return (
+                <div
+                  key={bucket}
+                  style={{
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 8,
+                    padding: '12px 14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.04em' }}>
+                      {bucket} REGIME ({reg.benchmark_symbol})
+                    </span>
+                    <span style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                      background: badgeBg,
+                      color: badgeColor,
+                      textTransform: 'uppercase',
+                    }}>
+                      {reg.regime.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.45, margin: 0 }}>
+                    {reg.summary_note}
+                  </p>
+                  <div style={{ display: 'flex', gap: 10, fontSize: 10, color: 'var(--text-muted)', fontFamily: 'IBM Plex Mono', marginTop: 2, flexWrap: 'wrap' }}>
+                    <span>5d: {fmtPct(reg.benchmark_return_5d_pct)}</span>
+                    <span>20d: {fmtPct(reg.benchmark_return_20d_pct)}</span>
+                    <span>RSI: {reg.benchmark_rsi.toFixed(1)}</span>
+                    {reg.vix_level != null && <span>VIX: {reg.vix_level.toFixed(1)}</span>}
+                    {reg.us10y_yield != null && <span>10Y: {reg.us10y_yield.toFixed(2)}%</span>}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </GlassCard>
+      )}
 
       {/* Chart: Price Drift by Recent Prediction */}
       {chartData.length > 0 && (
@@ -662,6 +784,19 @@ export default function QuantPage() {
                                   }}>
                                     DCA: {p.proposed_dca_score}
                                   </span>
+                                  {p.rl_q_score != null && (
+                                    <span style={{
+                                      fontSize: 10,
+                                      fontFamily: 'IBM Plex Mono',
+                                      padding: '1px 5px',
+                                      borderRadius: 4,
+                                      background: p.rl_q_score >= 0 ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+                                      color: p.rl_q_score >= 0 ? 'var(--accent-green)' : 'var(--accent-red)',
+                                      border: `1px solid ${p.rl_q_score >= 0 ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                                    }} title={`RL Expected Q-Edge: ${p.rl_q_score >= 0 ? '+' : ''}${p.rl_q_score.toFixed(1)}% · Macro: ${p.macro_regime || 'neutral'}`}>
+                                      Q:{p.rl_q_score >= 0 ? '+' : ''}{p.rl_q_score.toFixed(1)}%
+                                    </span>
+                                  )}
                                 </div>
                                 {!isExpanded && p.proposal_reason && (
                                   <p style={{
@@ -814,6 +949,15 @@ export default function QuantPage() {
                                       }}>
                                         <span>Proposed RSI: <strong style={{ color: 'var(--text-primary)' }}>{p.proposed_rsi ?? '—'}</strong></span>
                                         <span>Initial DCA Score: <strong style={{ color: 'var(--accent-cyan)' }}>{p.proposed_dca_score}/100</strong></span>
+                                        {p.rl_q_score != null && (
+                                          <span>RL Q-Edge: <strong style={{ color: p.rl_q_score >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{p.rl_q_score >= 0 ? '+' : ''}{p.rl_q_score.toFixed(1)}%</strong></span>
+                                        )}
+                                        {p.macro_regime && (
+                                          <span>Macro Regime: <strong style={{ color: 'var(--text-primary)', textTransform: 'uppercase' }}>{p.macro_regime.replace(/_/g, ' ')}</strong></span>
+                                        )}
+                                        {p.relative_strength_pct != null && (
+                                          <span>Rel. Strength vs Benchmark: <strong style={{ color: p.relative_strength_pct >= 0 ? 'var(--accent-green)' : 'var(--accent-amber)' }}>{fmtPct(p.relative_strength_pct)}</strong></span>
+                                        )}
                                         <span>Est. Cost: <strong style={{ color: 'var(--text-primary)' }}>{fmtPrice(p.total_estimated_cost)}</strong></span>
                                         <span>Env: <strong style={{ color: 'var(--text-primary)' }}>{p.trade_env || 'SIMULATE'}</strong></span>
                                       </div>

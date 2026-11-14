@@ -227,6 +227,9 @@ export interface DcaOpportunity {
   lot_100_cost: number
   lot_100_at_dip: number
   reasons: string[]
+  rl_q_score?: number
+  macro_regime?: string
+  relative_strength_pct?: number
 }
 
 export interface DcaRankedItem {
@@ -343,6 +346,9 @@ export interface TradingOrderProposal {
   price_drift_pct: number
   avg_cost_basis?: number | null
   realized_pnl?: number | null
+  rl_q_score?: number | null
+  macro_regime?: string | null
+  relative_strength_pct?: number | null
   last_bot_review_note: string | null
   last_bot_review_at: string | null
   moomoo_order_id: string | null
@@ -405,4 +411,38 @@ export interface MarketDiscoveryItem {
   discovery_reasons: string[]
   why_propose_summary: string
   fetched_at: string
+}
+
+export interface MarketRegimeSnapshot {
+  market_bucket: 'US' | 'SGX' | 'CRYPTO'
+  regime: 'risk_on' | 'neutral' | 'risk_off' | 'panic_capitulation'
+  regime_score: number
+  regime_label: string
+  benchmark_symbol: string
+  benchmark_price: number
+  benchmark_change_1d_pct: number
+  benchmark_return_5d_pct: number
+  benchmark_return_20d_pct: number
+  benchmark_above_sma50: boolean
+  benchmark_above_sma200: boolean
+  benchmark_rsi: number
+  vix_level: number | null
+  us10y_yield: number | null
+  summary_note: string
+  fetched_at: string
+}
+
+export interface RlStatusResponse {
+  policy: {
+    policy_version: number
+    episodes_trained: number
+    cumulative_reward: number
+    win_rate_pct: number
+    weights: Record<string, number>
+  }
+  regimes: {
+    US: MarketRegimeSnapshot
+    SGX: MarketRegimeSnapshot
+    CRYPTO: MarketRegimeSnapshot
+  }
 }
