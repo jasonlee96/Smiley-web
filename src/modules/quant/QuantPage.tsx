@@ -1,165 +1,742 @@
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { BarChart2, TrendingUp, Activity, Briefcase, Database, CheckCircle, XCircle, AlertCircle, Settings2 } from 'lucide-react'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import {
+  TrendingUp,
+  TrendingDown,
+  Activity,
+  ArrowUpRight,
+  RefreshCw,
+  Sparkles,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  ShieldCheck,
+  AlertTriangle,
+  LineChart,
+  BarChart3,
+  Layers,
+  ChevronRight,
+} from 'lucide-react'
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  ReferenceLine,
+} from 'recharts'
 import GlassCard from '../../components/GlassCard'
 import Spinner from '../../components/Spinner'
 import {
-  useQuantHealth,
-  useQuantPositions,
-  useQuantTrades,
-  useQuantJobs,
-  useQuantPerformanceSummary,
-  useQuantPerformance,
-} from '../../hooks/useQuant'
+  useTradingProposals,
+  useTradingWatchlist,
+  useBotProposalReview,
+} from '../../hooks/useTrading'
+import type { TradingOrderProposal } from '../../types/trading'
+
+type FilterTab = 'ALL' | 'GAINS' | 'LOSSES' | 'EXECUTED' | 'PENDING'
+
+function fmtPrice(v: number | null | undefined): string {
+  if (v == null || !isFinite(v)) return '—'
+  if (v >= 1000) return `$${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  if (v >= 1) return `$${v.toFixed(2)}`
+  if (v >= 0.01) return `$${v.toFixed(4)}`
+  return `$${v.toFixed(6)}`
+}
+
+function fmtPct(v: number | null | undefined): string {
+  if (v == null || !isFinite(v)) return '—'
+  const sign = v > 0 ? '+' : ''
+  return `${sign}${v.toFixed(2)}%`
+}
 
 export default function QuantPage() {
-  const healthQ = useQuantHealth()
-  const posQ = useQuantPositions()
-  const tradesQ = useQuantTrades()
-  const jobsQ = useQuantJobs()
-  const perfSummaryQ = useQuantPerformanceSummary()
-  const perfDataQ = useQuantPerformance(90)
+  const [filter, setFilter] = useState<FilterTab>('ALL')
+  const proposalsQ = useTradingProposals()
+  const watchlistQ = useTradingWatchlist()
+  const reviewMut = useBotProposalReview()
 
-  const trades = tradesQ.data ?? []
-  const positions = posQ.data ?? []
-  const jobs = jobsQ.data ?? []
-  const lastJob = jobs[0]
-  const summary = perfSummaryQ.data
-  const perfData: Array<{ date: string; equity: number; daily_pnl?: number; drawdown?: number }> = perfDataQ.data ?? []
+  const proposals: TradingOrderProposal[] = proposalsQ.data?.proposals ?? []
+  const watchlist = watchlistQ.data ?? []
 
-  const closedTrades = trades.filter(t => t.exit_date)
-  const wins = closedTrades.filter(t => t.pnl > 0).length
-  const winRate = closedTrades.length ? (wins / closedTrades.length) * 100 : null
-  const totalPnlFromTrades = closedTrades.reduce((sum, t) => sum + (t.pnl ?? 0), 0)
+  // Compute prediction performance stats
+  const stats = useMemo(() => {
+    if (proposals.length === 0) {
+      return {
+        total: 0,
+        winRate: 0,
+        gainCount: 0,
+        lossCount: 0,
+        avgDrift: 0,
+        executedCount: 0,
+        pendingCount: 0,
+        totalRealizedPnl: 0,
+        highConvictionWinRate: 0,
+        highConvictionCount: 0,
+        modConvictionWinRate: 0,
+        modConvictionCount: 0,
+      }
+    }
 
-  const isOnline = healthQ.data?.status === 'ok'
-  const StatusIcon = !healthQ.data ? AlertCircle : isOnline ? CheckCircle : XCircle
-  const statusColor = !healthQ.data ? 'var(--text-muted)' : isOnline ? 'var(--accent-green)' : 'var(--accent-red)'
+    let gainCount = 0
+    let lossCount = 0
+    let driftSum = 0
+    let executedCount = 0
+    let totalRealized = 0
 
-  // Prefer performance summary values; fall back to computed-from-trades
-  const totalReturn = summary?.total_return != null
-    ? `${Number(summary.total_return).toFixed(2)}%`
-    : winRate != null ? `${winRate.toFixed(0)}% win` : '—'
-  const todayPnl = summary?.daily_pnl != null
-    ? Number(summary.daily_pnl)
-    : null
-  const maxDrawdown = summary?.drawdown != null
-    ? `${Number(summary.drawdown).toFixed(2)}%`
-    : '—'
-  const openPositions = summary?.open_positions ?? positions.length
-  const totalPnlDisplay = summary?.total_return != null
-    ? totalReturn
-    : `$${totalPnlFromTrades.toFixed(2)}`
+    let highConvCount = 0
+    let highConvGains = 0
+    let modConvCount = 0
+    let modConvGains = 0
 
-  const cards = [
-    { label: 'Signals', desc: "Today's BUY/SELL signals", to: '/internal/quant/signals', icon: TrendingUp },
-    { label: 'Positions', desc: 'Open paper positions', to: '/internal/quant/positions', icon: Briefcase },
-    { label: 'Backtest', desc: 'Run historical simulation', to: '/internal/quant/backtest', icon: BarChart2 },
-    { label: 'Universe', desc: 'Stock watchlist', to: '/internal/quant/universe', icon: Database },
-    { label: 'Jobs', desc: 'Scheduler job status', to: '/internal/quant/jobs', icon: Activity },
-    { label: 'Settings', desc: 'Credentials & container control', to: '/internal/quant/settings', icon: Settings2 },
-  ]
+    proposals.forEach(p => {
+      const drift = p.price_drift_pct ?? 0
+      const isBuy = (p.side || 'BUY').toUpperCase() === 'BUY'
+      const isPositiveOutcome = isBuy ? drift >= 0 : drift <= 0
 
-  const todayPnlColor = todayPnl == null
-    ? 'var(--text-primary)'
-    : todayPnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'
+      driftSum += drift
+
+      if (isPositiveOutcome) {
+        gainCount++
+      } else {
+        lossCount++
+      }
+
+      if (p.status === 'executed') {
+        executedCount++
+        totalRealized += (p.realized_pnl ?? 0)
+      }
+
+      // Conviction tiers
+      if (p.proposed_dca_score >= 70) {
+        highConvCount++
+        if (isPositiveOutcome) highConvGains++
+      } else if (p.proposed_dca_score >= 50) {
+        modConvCount++
+        if (isPositiveOutcome) modConvGains++
+      }
+    })
+
+    const winRate = proposals.length > 0 ? (gainCount / proposals.length) * 100 : 0
+    const avgDrift = driftSum / proposals.length
+
+    return {
+      total: proposals.length,
+      winRate,
+      gainCount,
+      lossCount,
+      avgDrift,
+      executedCount,
+      pendingCount: proposalsQ.data?.pending_count ?? proposals.filter(p => p.status === 'pending_approval').length,
+      totalRealizedPnl: totalRealized,
+      highConvictionWinRate: highConvCount > 0 ? (highConvGains / highConvCount) * 100 : 0,
+      highConvictionCount: highConvCount,
+      modConvictionWinRate: modConvCount > 0 ? (modConvGains / modConvCount) * 100 : 0,
+      modConvictionCount: modConvCount,
+    }
+  }, [proposals, proposalsQ.data?.pending_count])
+
+  // Filtered proposals list
+  const filteredProposals = useMemo(() => {
+    switch (filter) {
+      case 'GAINS':
+        return proposals.filter(p => (p.price_drift_pct ?? 0) >= 0)
+      case 'LOSSES':
+        return proposals.filter(p => (p.price_drift_pct ?? 0) < 0)
+      case 'EXECUTED':
+        return proposals.filter(p => p.status === 'executed')
+      case 'PENDING':
+        return proposals.filter(p => p.status === 'pending_approval')
+      default:
+        return proposals
+    }
+  }, [proposals, filter])
+
+  // Chart data: Symbol vs Price Drift %
+  const chartData = useMemo(() => {
+    return proposals.slice(0, 15).map(p => ({
+      symbol: p.symbol,
+      drift: Number((p.price_drift_pct ?? 0).toFixed(2)),
+      score: p.proposed_dca_score,
+      status: p.status,
+    }))
+  }, [proposals])
+
+  const isLoading = proposalsQ.isLoading
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+      {/* Top Banner / Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <h1 style={{ fontFamily: 'Syne', fontWeight: 800, fontSize: 28, letterSpacing: '-0.03em' }}>Quant Bot</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>US + SGX swing trading</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h1 style={{ fontFamily: 'Syne', fontWeight: 800, fontSize: 28, letterSpacing: '-0.03em' }}>
+              Prediction Performance
+            </h1>
+            <span style={{
+              fontSize: 11,
+              fontWeight: 600,
+              padding: '2px 8px',
+              borderRadius: 6,
+              background: 'rgba(6,182,212,0.12)',
+              color: 'var(--accent-cyan)',
+              border: '1px solid rgba(6,182,212,0.3)',
+            }}>
+              LIVE MODEL
+            </span>
+          </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>
+            Evaluating prediction accuracy, forward price drift, and decision model outcomes linked directly to the Trading Hub.
+          </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-          {healthQ.isLoading ? <Spinner size={14} /> : (
-            <StatusIcon size={16} color={statusColor} />
-          )}
-          <span style={{ fontSize: 12, color: statusColor }}>
-            {healthQ.isLoading ? 'checking...' : isOnline ? 'API online' : 'API offline'}
-          </span>
+
+        {/* Action Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <button
+            className="btn-ghost"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '7px 14px' }}
+            onClick={() => reviewMut.mutate(undefined)}
+            disabled={reviewMut.isPending}
+            title="Trigger bot re-evaluation across all active proposals"
+          >
+            {reviewMut.isPending ? <Spinner size={14} /> : <Sparkles size={14} color="var(--accent-cyan)" />}
+            {reviewMut.isPending ? 'Evaluating...' : 'Re-Evaluate Signals'}
+          </button>
+
+          <button
+            className="btn-ghost"
+            style={{ padding: '7px 10px' }}
+            onClick={() => {
+              proposalsQ.refetch()
+              watchlistQ.refetch()
+            }}
+            title="Refresh latest data"
+          >
+            <RefreshCw size={14} className={proposalsQ.isFetching ? 'animate-spin' : ''} />
+          </button>
+
+          <Link
+            to="/internal/trading"
+            className="btn-primary"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              textDecoration: 'none',
+              fontSize: 13,
+              padding: '7px 16px',
+            }}
+          >
+            <LineChart size={15} />
+            Open Trading Hub
+            <ArrowUpRight size={14} />
+          </Link>
         </div>
       </div>
 
-      {/* Stats row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+      {/* Main Stats Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+        {/* Win Rate */}
         <GlassCard style={{ padding: '16px 20px' }}>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>Total Return</p>
-          <p style={{ fontFamily: 'IBM Plex Mono', fontSize: 22, fontWeight: 500, color: totalPnlFromTrades >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-            {summary?.total_return != null ? totalReturn : `$${totalPnlFromTrades.toFixed(2)}`}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              Prediction Win Rate
+            </span>
+            <CheckCircle2 size={15} color={stats.winRate >= 50 ? 'var(--accent-green)' : 'var(--accent-red)'} />
+          </div>
+          <p style={{
+            fontFamily: 'IBM Plex Mono',
+            fontSize: 26,
+            fontWeight: 600,
+            color: stats.winRate >= 50 ? 'var(--accent-green)' : 'var(--accent-red)',
+          }}>
+            {isLoading ? '—' : `${stats.winRate.toFixed(1)}%`}
+          </p>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+            {stats.gainCount} positive / {stats.lossCount} negative calls
           </p>
         </GlassCard>
+
+        {/* Avg Drift */}
         <GlassCard style={{ padding: '16px 20px' }}>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>Today's P&L</p>
-          <p style={{ fontFamily: 'IBM Plex Mono', fontSize: 22, fontWeight: 500, color: todayPnlColor }}>
-            {todayPnl != null ? `$${todayPnl.toFixed(2)}` : '—'}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              Avg Forward Drift
+            </span>
+            {stats.avgDrift >= 0 ? <TrendingUp size={15} color="var(--accent-green)" /> : <TrendingDown size={15} color="var(--accent-red)" />}
+          </div>
+          <p style={{
+            fontFamily: 'IBM Plex Mono',
+            fontSize: 26,
+            fontWeight: 600,
+            color: stats.avgDrift >= 0 ? 'var(--accent-green)' : 'var(--accent-red)',
+          }}>
+            {isLoading ? '—' : fmtPct(stats.avgDrift)}
+          </p>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+            Across {stats.total} tracked model calls
           </p>
         </GlassCard>
+
+        {/* High Conviction Accuracy */}
         <GlassCard style={{ padding: '16px 20px' }}>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>Max Drawdown</p>
-          <p style={{ fontFamily: 'IBM Plex Mono', fontSize: 22, fontWeight: 500, color: maxDrawdown !== '—' ? 'var(--accent-red)' : 'var(--text-primary)' }}>
-            {maxDrawdown}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              High Conviction (70+ DCA)
+            </span>
+            <ShieldCheck size={15} color="var(--accent-cyan)" />
+          </div>
+          <p style={{
+            fontFamily: 'IBM Plex Mono',
+            fontSize: 26,
+            fontWeight: 600,
+            color: 'var(--accent-cyan)',
+          }}>
+            {isLoading ? '—' : `${stats.highConvictionWinRate.toFixed(1)}%`}
+          </p>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+            {stats.highConvictionCount} high-conviction predictions
           </p>
         </GlassCard>
+
+        {/* Realized P&L */}
         <GlassCard style={{ padding: '16px 20px' }}>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>Open Positions</p>
-          <p style={{ fontFamily: 'IBM Plex Mono', fontSize: 22, fontWeight: 500 }}>{posQ.isLoading ? '—' : openPositions}</p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              Realized Bot P&L
+            </span>
+            <Activity size={15} color={stats.totalRealizedPnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'} />
+          </div>
+          <p style={{
+            fontFamily: 'IBM Plex Mono',
+            fontSize: 26,
+            fontWeight: 600,
+            color: stats.totalRealizedPnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)',
+          }}>
+            {isLoading ? '—' : `$${stats.totalRealizedPnl.toFixed(2)}`}
+          </p>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+            {stats.executedCount} executed orders completed
+          </p>
         </GlassCard>
       </div>
 
-      {/* Equity curve */}
-      {perfData && perfData.length > 0 ? (
-        <GlassCard style={{ padding: '20px 16px' }}>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16, paddingLeft: 4 }}>Portfolio Equity (90d)</p>
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={perfData}>
-              <defs>
-                <linearGradient id="perfGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--accent-cyan)" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="var(--accent-cyan)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickLine={false} interval="preserveStartEnd" />
-              <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} width={55} />
-              <Tooltip contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
-              <Area type="monotone" dataKey="equity" stroke="var(--accent-cyan)" strokeWidth={2} fill="url(#perfGrad)" dot={false} />
-            </AreaChart>
+      {/* Chart: Price Drift by Recent Prediction */}
+      {chartData.length > 0 && (
+        <GlassCard style={{ padding: '20px 18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div>
+              <p style={{ fontWeight: 600, fontSize: 14 }}>Price Drift Distribution (% Return Since Signal)</p>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                Measures the percentage movement from the model's proposed entry price to the current price.
+              </p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 11, color: 'var(--text-muted)' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--accent-green)' }} />
+                Gain / Bullish Hit
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--accent-red)' }} />
+                Loss / Adverse Drift
+              </span>
+            </div>
+          </div>
+
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+              <XAxis dataKey="symbol" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickLine={false} />
+              <YAxis
+                tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(v) => `${v}%`}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+                formatter={(val: any) => [`${val}%`, 'Price Drift']}
+              />
+              <ReferenceLine y={0} stroke="var(--border)" />
+              <Bar dataKey="drift" radius={[4, 4, 0, 0]}>
+                {chartData.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={entry.drift >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}
+                    fillOpacity={0.85}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
           </ResponsiveContainer>
         </GlassCard>
-      ) : (
-        <GlassCard style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-          No performance data yet — run the daily pipeline to start tracking equity.
-        </GlassCard>
       )}
 
-      {/* Last job */}
-      {lastJob && (
-        <GlassCard style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Activity size={14} color="var(--text-muted)" />
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Last job:</span>
-          <span style={{ fontSize: 12 }}>{lastJob.job_name}</span>
-          <span style={{ fontSize: 12, color: lastJob.status === 'success' ? 'var(--accent-green)' : lastJob.status === 'failed' ? 'var(--accent-red)' : 'var(--accent-cyan)' }}>
-            {lastJob.status}
-          </span>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>
-            {new Date(lastJob.started_at).toLocaleString()}
-          </span>
+      {/* Conviction Tier Breakdown */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+        <GlassCard style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{
+            width: 40,
+            height: 40,
+            borderRadius: 10,
+            background: 'rgba(6,182,212,0.12)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--accent-cyan)',
+          }}>
+            <ShieldCheck size={20} />
+          </div>
+          <div>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>High Conviction (70–100)</p>
+            <p style={{ fontFamily: 'IBM Plex Mono', fontSize: 18, fontWeight: 600, color: 'var(--accent-cyan)' }}>
+              {stats.highConvictionCount > 0 ? `${stats.highConvictionWinRate.toFixed(1)}% Win Rate` : 'No samples'}
+            </p>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{stats.highConvictionCount} proposals generated</p>
+          </div>
         </GlassCard>
-      )}
 
-      {/* Module cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
-        {cards.map(c => (
-          <Link key={c.to} to={c.to} style={{ textDecoration: 'none' }}>
-            <GlassCard style={{ padding: '20px', cursor: 'pointer', height: '100%' }}>
-              <c.icon size={20} color="var(--accent-cyan)" />
-              <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 4, marginTop: 10 }}>{c.label}</p>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>{c.desc}</p>
-            </GlassCard>
-          </Link>
-        ))}
+        <GlassCard style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{
+            width: 40,
+            height: 40,
+            borderRadius: 10,
+            background: 'rgba(245,158,11,0.12)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--accent-amber)',
+          }}>
+            <Layers size={20} />
+          </div>
+          <div>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Moderate Conviction (50–69)</p>
+            <p style={{ fontFamily: 'IBM Plex Mono', fontSize: 18, fontWeight: 600, color: 'var(--accent-amber)' }}>
+              {stats.modConvictionCount > 0 ? `${stats.modConvictionWinRate.toFixed(1)}% Win Rate` : 'No samples'}
+            </p>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{stats.modConvictionCount} proposals generated</p>
+          </div>
+        </GlassCard>
+
+        <GlassCard style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{
+            width: 40,
+            height: 40,
+            borderRadius: 10,
+            background: 'rgba(16,185,129,0.12)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--accent-green)',
+          }}>
+            <BarChart3 size={20} />
+          </div>
+          <div>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Watchlist Coverage</p>
+            <p style={{ fontFamily: 'IBM Plex Mono', fontSize: 18, fontWeight: 600, color: 'var(--accent-green)' }}>
+              {watchlist.length} Active Assets
+            </p>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Real-time indicators & AI thesis tracked</p>
+          </div>
+        </GlassCard>
       </div>
+
+      {/* Predictions & Outcome History Table */}
+      <GlassCard style={{ padding: 0, overflow: 'hidden' }}>
+        {/* Table Controls */}
+        <div style={{
+          padding: '16px 20px',
+          borderBottom: '1px solid var(--border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 12,
+        }}>
+          <div>
+            <p style={{ fontWeight: 600, fontSize: 14 }}>Model Prediction Logs & Bot Evaluations</p>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+              Inspect each individual proposal, model entry score, price movement, and bot review outcome.
+            </p>
+          </div>
+
+          {/* Filter Pills */}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {(['ALL', 'GAINS', 'LOSSES', 'EXECUTED', 'PENDING'] as FilterTab[]).map(tab => (
+              <button
+                key={tab}
+                className={filter === tab ? 'btn-primary' : 'btn-ghost'}
+                style={{ padding: '5px 12px', fontSize: 11, textTransform: 'capitalize' }}
+                onClick={() => setFilter(tab)}
+              >
+                {tab === 'ALL' ? 'All Signals' : tab.toLowerCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Table Body */}
+        {isLoading ? (
+          <div style={{ padding: 40, display: 'flex', justifyContent: 'center' }}>
+            <Spinner />
+          </div>
+        ) : filteredProposals.length === 0 ? (
+          <div style={{ padding: 36, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+            No proposals match the "{filter}" filter. Visit the{' '}
+            <Link to="/internal/trading" style={{ color: 'var(--accent-cyan)' }}>Trading Hub</Link> to generate new model setups.
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  {['Asset / Symbol', 'Model Signal', 'Proposed Price', 'Current Price', 'Price Drift', 'Bot Review Status', 'Action'].map(h => (
+                    <th
+                      key={h}
+                      style={{
+                        padding: '10px 16px',
+                        textAlign: 'left',
+                        fontSize: 11,
+                        color: 'var(--text-muted)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.08em',
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProposals.map(p => {
+                  const drift = p.price_drift_pct ?? 0
+                  const isPositive = drift >= 0
+                  const statusBg =
+                    p.status === 'executed'
+                      ? 'rgba(16,185,129,0.14)'
+                      : p.status === 'pending_approval'
+                        ? 'rgba(6,182,212,0.14)'
+                        : 'rgba(239,68,68,0.14)'
+                  const statusColor =
+                    p.status === 'executed'
+                      ? 'var(--accent-green)'
+                      : p.status === 'pending_approval'
+                        ? 'var(--accent-cyan)'
+                        : 'var(--accent-red)'
+
+                  return (
+                    <tr
+                      key={p.id}
+                      style={{
+                        borderBottom: '1px solid var(--border)',
+                        transition: 'background 0.15s ease',
+                      }}
+                      className="hover:bg-white/[0.02]"
+                    >
+                      {/* Asset & Symbol */}
+                      <td style={{ padding: '12px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontFamily: 'IBM Plex Mono', fontWeight: 600, fontSize: 13 }}>
+                            {p.symbol}
+                          </span>
+                          <span style={{
+                            fontSize: 10,
+                            padding: '1px 6px',
+                            borderRadius: 4,
+                            background: 'var(--bg-secondary)',
+                            color: 'var(--text-muted)',
+                            border: '1px solid var(--border)',
+                            textTransform: 'uppercase',
+                          }}>
+                            {p.asset_type || 'STOCK'}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                          {p.name !== p.symbol ? p.name : ''} · {new Date(p.created_at).toLocaleDateString()}
+                        </p>
+                      </td>
+
+                      {/* Signal & Score */}
+                      <td style={{ padding: '12px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            padding: '2px 8px',
+                            borderRadius: 4,
+                            background: p.proposed_signal?.toLowerCase().includes('buy') ? 'rgba(16,185,129,0.14)' : 'rgba(239,68,68,0.14)',
+                            color: p.proposed_signal?.toLowerCase().includes('buy') ? 'var(--accent-green)' : 'var(--accent-red)',
+                          }}>
+                            {p.proposed_signal?.toUpperCase() || p.side}
+                          </span>
+                          <span style={{
+                            fontSize: 11,
+                            fontFamily: 'IBM Plex Mono',
+                            color: p.proposed_dca_score >= 70 ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                          }}>
+                            DCA: {p.proposed_dca_score}
+                          </span>
+                        </div>
+                        {p.proposal_reason && (
+                          <p style={{
+                            fontSize: 11,
+                            color: 'var(--text-muted)',
+                            marginTop: 4,
+                            maxWidth: 220,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }} title={p.proposal_reason}>
+                            {p.proposal_reason}
+                          </p>
+                        )}
+                      </td>
+
+                      {/* Proposed Price */}
+                      <td style={{ padding: '12px 16px', fontFamily: 'IBM Plex Mono', fontSize: 13 }}>
+                        {fmtPrice(p.proposed_price)}
+                      </td>
+
+                      {/* Current Price */}
+                      <td style={{ padding: '12px 16px', fontFamily: 'IBM Plex Mono', fontSize: 13 }}>
+                        {fmtPrice(p.current_price)}
+                      </td>
+
+                      {/* Price Drift */}
+                      <td style={{ padding: '12px 16px' }}>
+                        <span style={{
+                          fontFamily: 'IBM Plex Mono',
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: isPositive ? 'var(--accent-green)' : 'var(--accent-red)',
+                        }}>
+                          {fmtPct(drift)}
+                        </span>
+                      </td>
+
+                      {/* Bot Review Status */}
+                      <td style={{ padding: '12px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{
+                            fontSize: 10,
+                            fontWeight: 600,
+                            padding: '2px 7px',
+                            borderRadius: 4,
+                            background: statusBg,
+                            color: statusColor,
+                            textTransform: 'uppercase',
+                          }}>
+                            {p.status.replace(/_/g, ' ')}
+                          </span>
+                          {p.still_worth_it ? (
+                            <span style={{ fontSize: 10, color: 'var(--accent-green)' }} title="Bot re-evaluated and confirmed setup is still valid">
+                              ● Valid
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: 10, color: 'var(--accent-amber)' }} title="Bot flagged condition as faded / stale">
+                              ▲ Faded
+                            </span>
+                          )}
+                        </div>
+                        {p.last_bot_review_note && (
+                          <p style={{
+                            fontSize: 10,
+                            color: 'var(--text-muted)',
+                            marginTop: 3,
+                            maxWidth: 220,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }} title={p.last_bot_review_note}>
+                            {p.last_bot_review_note}
+                          </p>
+                        )}
+                      </td>
+
+                      {/* Action Link to Trading */}
+                      <td style={{ padding: '12px 16px' }}>
+                        <Link
+                          to={`/internal/trading`}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            fontSize: 12,
+                            color: 'var(--accent-cyan)',
+                            textDecoration: 'none',
+                            fontWeight: 500,
+                          }}
+                        >
+                          Trading Hub
+                          <ChevronRight size={13} />
+                        </Link>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </GlassCard>
+
+      {/* Direct Bridge Footer to Trading Page */}
+      <GlassCard style={{
+        padding: '20px 24px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 16,
+        background: 'linear-gradient(135deg, rgba(6,182,212,0.06) 0%, rgba(16,185,129,0.04) 100%)',
+        border: '1px solid rgba(6,182,212,0.2)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{
+            width: 44,
+            height: 44,
+            borderRadius: 10,
+            background: 'var(--accent-cyan-dim)',
+            border: '1px solid var(--border-active)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--accent-cyan)',
+          }}>
+            <LineChart size={22} />
+          </div>
+          <div>
+            <p style={{ fontWeight: 600, fontSize: 15 }}>Ready to act on these predictions?</p>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+              Inspect live candlestick charts, multi-timeframe indicator matrices, and execute Moomoo pre-approvals in the Trading Hub.
+            </p>
+          </div>
+        </div>
+
+        <Link
+          to="/internal/trading"
+          className="btn-primary"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            textDecoration: 'none',
+            fontSize: 13,
+            padding: '9px 20px',
+          }}
+        >
+          Go to Trading Hub
+          <ArrowUpRight size={15} />
+        </Link>
+      </GlassCard>
     </div>
   )
 }

@@ -22,7 +22,7 @@ const OVERFLOW_NAV = [
   { to: '/internal/mail',       label: 'Mail',     icon: Mail },
   { to: '/internal/trips',      label: 'Trips',    icon: Plane },
   { to: '/internal/splitwise',  label: 'Splitter', icon: SplitSquareVertical },
-  { to: '/internal/quant',      label: 'Quant',    icon: BarChart2 },
+  { to: '/internal/quant',      label: 'Model Perf', icon: BarChart2 },
   { to: '/internal/tools',      label: 'Tools',    icon: Wrench },
 ]
 

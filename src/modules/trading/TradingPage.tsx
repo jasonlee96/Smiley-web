@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Search,
   RefreshCw,
@@ -216,8 +217,27 @@ export default function TradingPage() {
             </p>
           </div>
 
-          {/* Hourly Monitor, Price Targets & Slack Alert Center Buttons */}
+          {/* Hourly Monitor, Price Targets, Slack Alert Center & Model Perf Buttons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <Link
+              to="/internal/quant"
+              className="btn-ghost"
+              style={{
+                fontSize: 12,
+                padding: '7px 13px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                textDecoration: 'none',
+                color: 'var(--accent-cyan)',
+                border: '1px solid rgba(6,182,212,0.3)',
+                background: 'rgba(6,182,212,0.06)',
+              }}
+              title="View prediction win rate, forward price drift & model metrics"
+            >
+              <BarChart2 size={14} color="var(--accent-cyan)" />
+              <span>Prediction Perf</span>
+            </Link>
             <button
               className={unreadAlerts > 0 ? 'btn-primary' : 'btn-ghost'}
               onClick={() => {
