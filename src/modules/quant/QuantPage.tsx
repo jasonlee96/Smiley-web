@@ -42,6 +42,7 @@ import {
 import type { TradingOrderProposal } from '../../types/trading'
 
 type FilterTab = 'ALL' | 'GAINS' | 'LOSSES' | 'EXECUTED' | 'PENDING'
+type EnvFilter = 'ALL' | 'SIMULATE' | 'REAL'
 
 function fmtPrice(v: number | null | undefined): string {
   if (v == null || !isFinite(v)) return '—'
@@ -59,6 +60,7 @@ function fmtPct(v: number | null | undefined): string {
 
 export default function QuantPage() {
   const [filter, setFilter] = useState<FilterTab>('ALL')
+  const [envFilter, setEnvFilter] = useState<EnvFilter>('ALL')
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set())
   const [expandAll, setExpandAll] = useState(false)
 
@@ -67,7 +69,11 @@ export default function QuantPage() {
   const rlStatusQ = useRlStatus()
   const reviewMut = useBotProposalReview()
 
-  const proposals: TradingOrderProposal[] = proposalsQ.data?.proposals ?? []
+  const allProposals: TradingOrderProposal[] = proposalsQ.data?.proposals ?? []
+  const proposals: TradingOrderProposal[] = useMemo(() => {
+    if (envFilter === 'ALL') return allProposals
+    return allProposals.filter(p => (p.trade_env || 'SIMULATE') === envFilter)
+  }, [allProposals, envFilter])
   const watchlist = watchlistQ.data ?? []
 
   const toggleExpand = (id: number) => {
@@ -653,6 +659,37 @@ export default function QuantPage() {
               <span>{expandAll ? 'Collapse Rationales' : 'Expand All Rationales'}</span>
             </button>
 
+            {/* Environment Filter (ALL / SIMULATE / REAL) */}
+            <div style={{ display: 'flex', gap: 4, background: 'var(--bg-secondary)', padding: 3, borderRadius: 6, border: '1px solid var(--border)' }}>
+              {(['ALL', 'SIMULATE', 'REAL'] as EnvFilter[]).map(env => (
+                <button
+                  key={env}
+                  type="button"
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    borderRadius: 4,
+                    border: 'none',
+                    cursor: 'pointer',
+                    background: envFilter === env
+                      ? env === 'REAL'
+                        ? 'rgba(245,158,11,0.2)'
+                        : 'rgba(6,182,212,0.2)'
+                      : 'transparent',
+                    color: envFilter === env
+                      ? env === 'REAL'
+                        ? 'var(--accent-amber)'
+                        : 'var(--accent-cyan)'
+                      : 'var(--text-muted)',
+                  }}
+                  onClick={() => setEnvFilter(env)}
+                >
+                  {env === 'ALL' ? 'All Envs' : env === 'SIMULATE' ? '🧪 SIMULATE' : '💵 REAL'}
+                </button>
+              ))}
+            </div>
+
             {/* Filter Pills */}
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {(['ALL', 'GAINS', 'LOSSES', 'EXECUTED', 'PENDING'] as FilterTab[]).map(tab => (
@@ -760,7 +797,7 @@ export default function QuantPage() {
 
                               {/* Asset & Symbol */}
                               <td style={{ padding: '12px 16px', minWidth: 160 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                                   <span style={{ fontFamily: 'IBM Plex Mono', fontWeight: 600, fontSize: 13 }}>
                                     {p.symbol}
                                   </span>
@@ -774,6 +811,17 @@ export default function QuantPage() {
                                     textTransform: 'uppercase',
                                   }}>
                                     {p.asset_type || 'STOCK'}
+                                  </span>
+                                  <span style={{
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    padding: '1px 6px',
+                                    borderRadius: 4,
+                                    background: p.trade_env === 'REAL' ? 'rgba(245,158,11,0.16)' : 'rgba(6,182,212,0.12)',
+                                    color: p.trade_env === 'REAL' ? 'var(--accent-amber)' : 'var(--accent-cyan)',
+                                    border: `1px solid ${p.trade_env === 'REAL' ? 'rgba(245,158,11,0.35)' : 'rgba(6,182,212,0.3)'}`,
+                                  }}>
+                                    {p.trade_env === 'REAL' ? 'REAL' : 'SIM'}
                                   </span>
                                 </div>
                                 <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>

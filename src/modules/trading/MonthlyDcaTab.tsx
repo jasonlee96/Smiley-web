@@ -232,8 +232,18 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
   const holdings = accumData?.holdings || []
   const entries = accumData?.entries || []
   const allProposals: TradingOrderProposal[] = proposalsData?.proposals || []
-  const pendingProposals = allProposals.filter((p) => p.status === 'pending_approval')
-  const historyProposals = allProposals.filter((p) => p.status !== 'pending_approval')
+  const simPendingCount = allProposals.filter(
+    (p) => p.status === 'pending_approval' && (p.trade_env || 'SIMULATE') === 'SIMULATE',
+  ).length
+  const realPendingCount = allProposals.filter(
+    (p) => p.status === 'pending_approval' && p.trade_env === 'REAL',
+  ).length
+  const pendingProposals = allProposals.filter(
+    (p) => p.status === 'pending_approval' && (p.trade_env || 'SIMULATE') === selectedTradeEnv,
+  )
+  const historyProposals = allProposals.filter(
+    (p) => p.status !== 'pending_approval' && (p.trade_env || 'SIMULATE') === selectedTradeEnv,
+  )
 
   function handleStagePreApproval(item: DcaRankedItem, useDipPrice = false) {
     const entryPrice =
@@ -518,7 +528,7 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                   color: selectedTradeEnv === 'SIMULATE' ? '#38bdf8' : '#64748b',
                 }}
               >
-                Moomoo SIMULATE
+                🧪 SIMULATE ({simPendingCount})
               </button>
               <button
                 type="button"
@@ -534,7 +544,7 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                   color: selectedTradeEnv === 'REAL' ? '#fbbf24' : '#64748b',
                 }}
               >
-                Moomoo REAL
+                💵 REAL ({realPendingCount})
               </button>
             </div>
 
