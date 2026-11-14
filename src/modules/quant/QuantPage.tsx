@@ -38,6 +38,7 @@ import {
   useTradingWatchlist,
   useBotProposalReview,
   useRlStatus,
+  useRefreshNewsBatch,
 } from '../../hooks/useTrading'
 import type { TradingOrderProposal } from '../../types/trading'
 
@@ -68,6 +69,7 @@ export default function QuantPage() {
   const watchlistQ = useTradingWatchlist()
   const rlStatusQ = useRlStatus()
   const reviewMut = useBotProposalReview()
+  const newsRefreshMut = useRefreshNewsBatch()
 
   const allProposals: TradingOrderProposal[] = proposalsQ.data?.proposals ?? []
   const simCount = useMemo(
@@ -545,6 +547,129 @@ export default function QuantPage() {
               )
             })}
           </div>
+
+          {/* Phase 2: Batch News & Catalyst Sentiment Feed */}
+          <div style={{
+            marginTop: 14,
+            paddingTop: 14,
+            borderTop: '1px solid var(--border)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 10 }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.03em' }}>
+                    PHASE 2: BATCH NEWS &amp; CATALYST SENTIMENT GUARDRAILS
+                  </span>
+                  <span style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    padding: '2px 7px',
+                    borderRadius: 4,
+                    background: 'rgba(6, 182, 212, 0.12)',
+                    color: 'var(--accent-cyan)',
+                  }}>
+                    Yahoo News + Google Finance RSS · FinBERT Lexicon
+                  </span>
+                </div>
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                  Detects earnings beats/misses, analyst upgrades/downgrades, and legal/regulatory shocks — adjusting DCA scores (±18 pts) and auto-cancelling pending BUYs on severe negative catalysts.
+                </p>
+              </div>
+              <button
+                onClick={() => newsRefreshMut.mutate()}
+                disabled={newsRefreshMut.isPending}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 12px',
+                  borderRadius: 6,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: newsRefreshMut.isPending ? 'wait' : 'pointer',
+                  background: 'var(--bg-secondary)',
+                  color: 'var(--accent-cyan)',
+                  border: '1px solid rgba(6, 182, 212, 0.35)',
+                }}
+              >
+                <RefreshCw size={12} className={newsRefreshMut.isPending ? 'spin' : ''} />
+                {newsRefreshMut.isPending ? 'Scanning Watchlist News...' : 'Scan Watchlist News'}
+              </button>
+            </div>
+
+            {rlStatusQ.data.news_feed && rlStatusQ.data.news_feed.length > 0 ? (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                gap: 8,
+              }}>
+                {rlStatusQ.data.news_feed.slice(0, 8).map((nf) => {
+                  const score = Number(nf.avg_sentiment_score ?? nf.sentiment_score ?? 0)
+                  const isBull = score >= 0.12
+                  const isBear = score <= -0.12
+                  const sColor = isBull ? 'var(--accent-green)' : isBear ? 'var(--accent-red)' : 'var(--text-muted)'
+                  const sBg = isBull ? 'rgba(16, 185, 129, 0.12)' : isBear ? 'rgba(239, 68, 68, 0.12)' : 'rgba(148, 163, 184, 0.12)'
+                  return (
+                    <div
+                      key={nf.symbol}
+                      style={{
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 7,
+                        padding: '9px 12px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontWeight: 700, fontSize: 12, fontFamily: 'IBM Plex Mono', color: 'var(--text-primary)' }}>
+                            {nf.symbol}
+                          </span>
+                          <span style={{
+                            fontSize: 9,
+                            fontWeight: 700,
+                            padding: '1px 5px',
+                            borderRadius: 4,
+                            background: sBg,
+                            color: sColor,
+                            textTransform: 'uppercase',
+                            fontFamily: 'IBM Plex Mono',
+                          }}>
+                            {nf.sentiment_label} ({score >= 0 ? '+' : ''}{score.toFixed(2)})
+                          </span>
+                        </div>
+                        <span style={{
+                          fontSize: 9,
+                          fontFamily: 'IBM Plex Mono',
+                          color: nf.dca_score_adjustment > 0 ? 'var(--accent-green)' : nf.dca_score_adjustment < 0 ? 'var(--accent-red)' : 'var(--text-muted)',
+                        }}>
+                          DCA {nf.dca_score_adjustment >= 0 ? '+' : ''}{nf.dca_score_adjustment}pt · {nf.dominant_catalyst.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+                      <p style={{
+                        fontSize: 10,
+                        color: 'var(--text-muted)',
+                        margin: 0,
+                        lineHeight: 1.35,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                      }} title={nf.top_headline || nf.summary_line}>
+                        {nf.top_headline || nf.summary_line}
+                      </p>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>
+                No cached watchlist headlines yet — click "Scan Watchlist News" or wait for the next hourly bot review.
+              </p>
+            )}
+          </div>
         </GlassCard>
       )}
 
@@ -912,8 +1037,28 @@ export default function QuantPage() {
                                       background: p.rl_q_score >= 0 ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
                                       color: p.rl_q_score >= 0 ? 'var(--accent-green)' : 'var(--accent-red)',
                                       border: `1px solid ${p.rl_q_score >= 0 ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
-                                    }} title={`RL Expected Q-Edge: ${p.rl_q_score >= 0 ? '+' : ''}${p.rl_q_score.toFixed(1)}% · Macro: ${p.macro_regime || 'neutral'}`}>
-                                      Q:{p.rl_q_score >= 0 ? '+' : ''}{p.rl_q_score.toFixed(1)}%
+                                    }} title={`RL Expected Q-Edge: ${p.rl_q_score >= 0 ? '+' : ''}${Number(p.rl_q_score).toFixed(1)}% · Macro: ${p.macro_regime || 'neutral'}`}>
+                                      Q:{p.rl_q_score >= 0 ? '+' : ''}{Number(p.rl_q_score).toFixed(1)}%
+                                    </span>
+                                  )}
+                                  {p.news_sentiment_score != null && (
+                                    <span style={{
+                                      fontSize: 10,
+                                      fontFamily: 'IBM Plex Mono',
+                                      padding: '1px 5px',
+                                      borderRadius: 4,
+                                      background: p.news_sentiment_score >= 0.12
+                                        ? 'rgba(16,185,129,0.12)'
+                                        : p.news_sentiment_score <= -0.12
+                                        ? 'rgba(239,68,68,0.12)'
+                                        : 'rgba(148,163,184,0.12)',
+                                      color: p.news_sentiment_score >= 0.12
+                                        ? 'var(--accent-green)'
+                                        : p.news_sentiment_score <= -0.12
+                                        ? 'var(--accent-red)'
+                                        : 'var(--text-muted)',
+                                    }} title={p.news_headline_summary || `News Catalyst: ${p.news_catalyst_tag || 'general'}`}>
+                                      News:{p.news_sentiment_score >= 0 ? '+' : ''}{Number(p.news_sentiment_score).toFixed(2)}
                                     </span>
                                   )}
                                 </div>
@@ -1077,9 +1222,24 @@ export default function QuantPage() {
                                         {p.relative_strength_pct != null && (
                                           <span>Rel. Strength vs Benchmark: <strong style={{ color: p.relative_strength_pct >= 0 ? 'var(--accent-green)' : 'var(--accent-amber)' }}>{fmtPct(p.relative_strength_pct)}</strong></span>
                                         )}
+                                        {p.news_sentiment_score != null && (
+                                          <span>News Sentiment: <strong style={{ color: p.news_sentiment_score >= 0.12 ? 'var(--accent-green)' : p.news_sentiment_score <= -0.12 ? 'var(--accent-red)' : 'var(--text-primary)' }}>{p.news_sentiment_score >= 0 ? '+' : ''}{Number(p.news_sentiment_score).toFixed(2)} ({p.news_catalyst_tag || 'general'})</strong></span>
+                                        )}
                                         <span>Est. Cost: <strong style={{ color: 'var(--text-primary)' }}>{fmtPrice(p.total_estimated_cost)}</strong></span>
                                         <span>Env: <strong style={{ color: 'var(--text-primary)' }}>{p.trade_env || 'SIMULATE'}</strong></span>
                                       </div>
+                                      {p.news_headline_summary && (
+                                        <div style={{
+                                          fontSize: 11,
+                                          color: 'var(--text-muted)',
+                                          background: 'rgba(6, 182, 212, 0.06)',
+                                          border: '1px solid rgba(6, 182, 212, 0.2)',
+                                          borderRadius: 6,
+                                          padding: '6px 10px',
+                                        }}>
+                                          <strong style={{ color: 'var(--accent-cyan)' }}>Catalyst Headline:</strong> {p.news_headline_summary}
+                                        </div>
+                                      )}
                                     </div>
 
                                     {/* 2. Bot Re-Evaluation & Review Rationale */}

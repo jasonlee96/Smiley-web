@@ -349,6 +349,9 @@ export interface TradingOrderProposal {
   rl_q_score?: number | null
   macro_regime?: string | null
   relative_strength_pct?: number | null
+  news_sentiment_score?: number | null
+  news_catalyst_tag?: string | null
+  news_headline_summary?: string | null
   last_bot_review_note: string | null
   last_bot_review_at: string | null
   moomoo_order_id: string | null
@@ -435,6 +438,26 @@ export interface MarketRegimeSnapshot {
   fetched_at: string
 }
 
+export interface TickerNewsSentimentSummary {
+  symbol: string
+  sentiment_score?: number
+  avg_sentiment_score?: number
+  sentiment_label:
+    | 'BULLISH CATALYST'
+    | 'POSITIVE SENTIMENT'
+    | 'NEUTRAL NEWS'
+    | 'BEARISH HEADWINDS'
+    | 'SEVERE NEGATIVE RISK'
+  dominant_catalyst: string
+  event_risk_flag: string
+  dca_score_adjustment: number
+  article_count: number
+  top_headline: string | null
+  top_publisher: string | null
+  summary_line: string
+  fetched_at: string
+}
+
 export interface RlStatusResponse {
   policy: {
     policy_key?: string
@@ -455,4 +478,5 @@ export interface RlStatusResponse {
     SGX: MarketRegimeSnapshot
     CRYPTO: MarketRegimeSnapshot
   }
+  news_feed?: TickerNewsSentimentSummary[]
 }

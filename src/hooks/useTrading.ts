@@ -281,3 +281,14 @@ export function useRlStatus() {
     refetchInterval: 120000,
   })
 }
+
+export function useRefreshNewsBatch() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => tradingApi.refreshNewsBatch(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trading', 'rl-status'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'proposals'] })
+    },
+  })
+}
