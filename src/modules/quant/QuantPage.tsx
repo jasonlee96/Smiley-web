@@ -8,7 +8,6 @@ import {
   RefreshCw,
   Sparkles,
   CheckCircle2,
-  XCircle,
   Clock,
   ShieldCheck,
   AlertTriangle,
@@ -16,6 +15,10 @@ import {
   BarChart3,
   Layers,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  MessageSquareText,
+  FileText,
 } from 'lucide-react'
 import {
   BarChart,
@@ -55,12 +58,34 @@ function fmtPct(v: number | null | undefined): string {
 
 export default function QuantPage() {
   const [filter, setFilter] = useState<FilterTab>('ALL')
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set())
+  const [expandAll, setExpandAll] = useState(false)
+
   const proposalsQ = useTradingProposals()
   const watchlistQ = useTradingWatchlist()
   const reviewMut = useBotProposalReview()
 
   const proposals: TradingOrderProposal[] = proposalsQ.data?.proposals ?? []
   const watchlist = watchlistQ.data ?? []
+
+  const toggleExpand = (id: number) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleExpandAll = () => {
+    if (expandAll) {
+      setExpandedIds(new Set())
+      setExpandAll(false)
+    } else {
+      setExpandedIds(new Set(proposals.map(p => p.id)))
+      setExpandAll(true)
+    }
+  }
 
   // Compute prediction performance stats
   const stats = useMemo(() => {
@@ -462,24 +487,46 @@ export default function QuantPage() {
           gap: 12,
         }}>
           <div>
-            <p style={{ fontWeight: 600, fontSize: 14 }}>Model Prediction Logs & Bot Evaluations</p>
+            <p style={{ fontWeight: 600, fontSize: 14 }}>Model Prediction Logs & Decision Rationales</p>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-              Inspect each individual proposal, model entry score, price movement, and bot review outcome.
+              Inspect each individual proposal, model entry score, un-truncated decision rationales, and bot re-evaluation outcomes.
             </p>
           </div>
 
-          {/* Filter Pills */}
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {(['ALL', 'GAINS', 'LOSSES', 'EXECUTED', 'PENDING'] as FilterTab[]).map(tab => (
-              <button
-                key={tab}
-                className={filter === tab ? 'btn-primary' : 'btn-ghost'}
-                style={{ padding: '5px 12px', fontSize: 11, textTransform: 'capitalize' }}
-                onClick={() => setFilter(tab)}
-              >
-                {tab === 'ALL' ? 'All Signals' : tab.toLowerCase()}
-              </button>
-            ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {/* Expand / Collapse All Rationales Toggle */}
+            <button
+              className="btn-ghost"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 11,
+                padding: '5px 12px',
+                color: expandAll ? 'var(--accent-cyan)' : 'var(--text-secondary)',
+                border: expandAll ? '1px solid rgba(6,182,212,0.4)' : '1px solid var(--border)',
+                background: expandAll ? 'rgba(6,182,212,0.08)' : 'transparent',
+              }}
+              onClick={toggleExpandAll}
+              title="Toggle full rationales for all rows"
+            >
+              <MessageSquareText size={13} color={expandAll ? 'var(--accent-cyan)' : 'var(--text-muted)'} />
+              <span>{expandAll ? 'Collapse Rationales' : 'Expand All Rationales'}</span>
+            </button>
+
+            {/* Filter Pills */}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {(['ALL', 'GAINS', 'LOSSES', 'EXECUTED', 'PENDING'] as FilterTab[]).map(tab => (
+                <button
+                  key={tab}
+                  className={filter === tab ? 'btn-primary' : 'btn-ghost'}
+                  style={{ padding: '5px 12px', fontSize: 11, textTransform: 'capitalize' }}
+                  onClick={() => setFilter(tab)}
+                >
+                  {tab === 'ALL' ? 'All Signals' : tab.toLowerCase()}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -498,6 +545,7 @@ export default function QuantPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  <th style={{ width: 36, padding: '10px 8px 10px 16px' }} />
                   {['Asset / Symbol', 'Model Signal', 'Proposed Price', 'Current Price', 'Price Drift', 'Bot Review Status', 'Action'].map(h => (
                     <th
                       key={h}
@@ -519,6 +567,7 @@ export default function QuantPage() {
                 {filteredProposals.map(p => {
                   const drift = p.price_drift_pct ?? 0
                   const isPositive = drift >= 0
+                  const isExpanded = expandAll || expandedIds.has(p.id)
                   const statusBg =
                     p.status === 'executed'
                       ? 'rgba(16,185,129,0.14)'
@@ -533,151 +582,320 @@ export default function QuantPage() {
                         : 'var(--accent-red)'
 
                   return (
-                    <tr
-                      key={p.id}
-                      style={{
-                        borderBottom: '1px solid var(--border)',
-                        transition: 'background 0.15s ease',
-                      }}
-                      className="hover:bg-white/[0.02]"
-                    >
-                      {/* Asset & Symbol */}
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontFamily: 'IBM Plex Mono', fontWeight: 600, fontSize: 13 }}>
-                            {p.symbol}
-                          </span>
-                          <span style={{
-                            fontSize: 10,
-                            padding: '1px 6px',
-                            borderRadius: 4,
-                            background: 'var(--bg-secondary)',
-                            color: 'var(--text-muted)',
-                            border: '1px solid var(--border)',
-                            textTransform: 'uppercase',
-                          }}>
-                            {p.asset_type || 'STOCK'}
-                          </span>
-                        </div>
-                        <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                          {p.name !== p.symbol ? p.name : ''} · {new Date(p.created_at).toLocaleDateString()}
-                        </p>
-                      </td>
+                    <tr key={`group-${p.id}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td colSpan={8} style={{ padding: 0 }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <tbody>
+                            {/* Main Summary Row */}
+                            <tr
+                              style={{
+                                cursor: 'pointer',
+                                transition: 'background 0.15s ease',
+                                background: isExpanded ? 'rgba(255, 255, 255, 0.02)' : 'transparent',
+                              }}
+                              className="hover:bg-white/[0.03]"
+                              onClick={() => toggleExpand(p.id)}
+                            >
+                              {/* Expand Toggle */}
+                              <td style={{ width: 36, padding: '12px 8px 12px 16px', textAlign: 'center' }}>
+                                <button
+                                  type="button"
+                                  className="btn-ghost"
+                                  style={{
+                                    padding: 4,
+                                    borderRadius: 4,
+                                    color: isExpanded ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    toggleExpand(p.id)
+                                  }}
+                                  title={isExpanded ? 'Collapse rationale' : 'View full rationale'}
+                                >
+                                  {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                                </button>
+                              </td>
 
-                      {/* Signal & Score */}
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{
-                            fontSize: 11,
-                            fontWeight: 600,
-                            padding: '2px 8px',
-                            borderRadius: 4,
-                            background: p.proposed_signal?.toLowerCase().includes('buy') ? 'rgba(16,185,129,0.14)' : 'rgba(239,68,68,0.14)',
-                            color: p.proposed_signal?.toLowerCase().includes('buy') ? 'var(--accent-green)' : 'var(--accent-red)',
-                          }}>
-                            {p.proposed_signal?.toUpperCase() || p.side}
-                          </span>
-                          <span style={{
-                            fontSize: 11,
-                            fontFamily: 'IBM Plex Mono',
-                            color: p.proposed_dca_score >= 70 ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                          }}>
-                            DCA: {p.proposed_dca_score}
-                          </span>
-                        </div>
-                        {p.proposal_reason && (
-                          <p style={{
-                            fontSize: 11,
-                            color: 'var(--text-muted)',
-                            marginTop: 4,
-                            maxWidth: 220,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }} title={p.proposal_reason}>
-                            {p.proposal_reason}
-                          </p>
-                        )}
-                      </td>
+                              {/* Asset & Symbol */}
+                              <td style={{ padding: '12px 16px', minWidth: 160 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontFamily: 'IBM Plex Mono', fontWeight: 600, fontSize: 13 }}>
+                                    {p.symbol}
+                                  </span>
+                                  <span style={{
+                                    fontSize: 10,
+                                    padding: '1px 6px',
+                                    borderRadius: 4,
+                                    background: 'var(--bg-secondary)',
+                                    color: 'var(--text-muted)',
+                                    border: '1px solid var(--border)',
+                                    textTransform: 'uppercase',
+                                  }}>
+                                    {p.asset_type || 'STOCK'}
+                                  </span>
+                                </div>
+                                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                                  {p.name !== p.symbol ? p.name : ''} · {new Date(p.created_at).toLocaleDateString()}
+                                </p>
+                              </td>
 
-                      {/* Proposed Price */}
-                      <td style={{ padding: '12px 16px', fontFamily: 'IBM Plex Mono', fontSize: 13 }}>
-                        {fmtPrice(p.proposed_price)}
-                      </td>
+                              {/* Signal & Score */}
+                              <td style={{ padding: '12px 16px', minWidth: 180 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span style={{
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    padding: '2px 8px',
+                                    borderRadius: 4,
+                                    background: p.proposed_signal?.toLowerCase().includes('buy') ? 'rgba(16,185,129,0.14)' : 'rgba(239,68,68,0.14)',
+                                    color: p.proposed_signal?.toLowerCase().includes('buy') ? 'var(--accent-green)' : 'var(--accent-red)',
+                                  }}>
+                                    {p.proposed_signal?.toUpperCase() || p.side}
+                                  </span>
+                                  <span style={{
+                                    fontSize: 11,
+                                    fontFamily: 'IBM Plex Mono',
+                                    color: p.proposed_dca_score >= 70 ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                                  }}>
+                                    DCA: {p.proposed_dca_score}
+                                  </span>
+                                </div>
+                                {!isExpanded && p.proposal_reason && (
+                                  <p style={{
+                                    fontSize: 11,
+                                    color: 'var(--text-muted)',
+                                    marginTop: 4,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                  }}>
+                                    <span style={{ color: 'var(--accent-cyan)', fontSize: 10 }}>[Click to view full rationale]</span>
+                                  </p>
+                                )}
+                              </td>
 
-                      {/* Current Price */}
-                      <td style={{ padding: '12px 16px', fontFamily: 'IBM Plex Mono', fontSize: 13 }}>
-                        {fmtPrice(p.current_price)}
-                      </td>
+                              {/* Proposed Price */}
+                              <td style={{ padding: '12px 16px', fontFamily: 'IBM Plex Mono', fontSize: 13, minWidth: 110 }}>
+                                {fmtPrice(p.proposed_price)}
+                              </td>
 
-                      {/* Price Drift */}
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{
-                          fontFamily: 'IBM Plex Mono',
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: isPositive ? 'var(--accent-green)' : 'var(--accent-red)',
-                        }}>
-                          {fmtPct(drift)}
-                        </span>
-                      </td>
+                              {/* Current Price */}
+                              <td style={{ padding: '12px 16px', fontFamily: 'IBM Plex Mono', fontSize: 13, minWidth: 110 }}>
+                                {fmtPrice(p.current_price)}
+                              </td>
 
-                      {/* Bot Review Status */}
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{
-                            fontSize: 10,
-                            fontWeight: 600,
-                            padding: '2px 7px',
-                            borderRadius: 4,
-                            background: statusBg,
-                            color: statusColor,
-                            textTransform: 'uppercase',
-                          }}>
-                            {p.status.replace(/_/g, ' ')}
-                          </span>
-                          {p.still_worth_it ? (
-                            <span style={{ fontSize: 10, color: 'var(--accent-green)' }} title="Bot re-evaluated and confirmed setup is still valid">
-                              ● Valid
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: 10, color: 'var(--accent-amber)' }} title="Bot flagged condition as faded / stale">
-                              ▲ Faded
-                            </span>
-                          )}
-                        </div>
-                        {p.last_bot_review_note && (
-                          <p style={{
-                            fontSize: 10,
-                            color: 'var(--text-muted)',
-                            marginTop: 3,
-                            maxWidth: 220,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }} title={p.last_bot_review_note}>
-                            {p.last_bot_review_note}
-                          </p>
-                        )}
-                      </td>
+                              {/* Price Drift */}
+                              <td style={{ padding: '12px 16px', minWidth: 110 }}>
+                                <span style={{
+                                  fontFamily: 'IBM Plex Mono',
+                                  fontSize: 13,
+                                  fontWeight: 600,
+                                  color: isPositive ? 'var(--accent-green)' : 'var(--accent-red)',
+                                }}>
+                                  {fmtPct(drift)}
+                                </span>
+                              </td>
 
-                      {/* Action Link to Trading */}
-                      <td style={{ padding: '12px 16px' }}>
-                        <Link
-                          to={`/internal/trading`}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 4,
-                            fontSize: 12,
-                            color: 'var(--accent-cyan)',
-                            textDecoration: 'none',
-                            fontWeight: 500,
-                          }}
-                        >
-                          Trading Hub
-                          <ChevronRight size={13} />
-                        </Link>
+                              {/* Bot Review Status */}
+                              <td style={{ padding: '12px 16px', minWidth: 170 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span style={{
+                                    fontSize: 10,
+                                    fontWeight: 600,
+                                    padding: '2px 7px',
+                                    borderRadius: 4,
+                                    background: statusBg,
+                                    color: statusColor,
+                                    textTransform: 'uppercase',
+                                  }}>
+                                    {p.status.replace(/_/g, ' ')}
+                                  </span>
+                                  {p.still_worth_it ? (
+                                    <span style={{ fontSize: 10, color: 'var(--accent-green)', fontWeight: 500 }} title="Bot re-evaluated and confirmed setup is still valid">
+                                      ● Valid
+                                    </span>
+                                  ) : (
+                                    <span style={{ fontSize: 10, color: 'var(--accent-amber)', fontWeight: 500 }} title="Bot flagged condition as faded / stale">
+                                      ▲ Faded
+                                    </span>
+                                  )}
+                                </div>
+                                {!isExpanded && (
+                                  <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>
+                                    Checked #{p.bot_review_count || 1}
+                                  </p>
+                                )}
+                              </td>
+
+                              {/* Action Link to Trading */}
+                              <td style={{ padding: '12px 16px', minWidth: 120 }}>
+                                <Link
+                                  to="/internal/trading"
+                                  onClick={(e) => e.stopPropagation()}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                    fontSize: 12,
+                                    color: 'var(--accent-cyan)',
+                                    textDecoration: 'none',
+                                    fontWeight: 500,
+                                  }}
+                                >
+                                  Trading Hub
+                                  <ChevronRight size={13} />
+                                </Link>
+                              </td>
+                            </tr>
+
+                            {/* Full Un-truncated Rationale & Decision Details Drawer */}
+                            {isExpanded && (
+                              <tr style={{ background: 'rgba(255, 255, 255, 0.012)' }}>
+                                <td colSpan={8} style={{ padding: '8px 20px 20px 48px' }}>
+                                  <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+                                    gap: 16,
+                                  }}>
+                                    {/* 1. Initial Model Decision Rationale */}
+                                    <div style={{
+                                      background: 'var(--bg-secondary)',
+                                      border: '1px solid var(--border)',
+                                      borderRadius: 10,
+                                      padding: '16px 18px',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      gap: 10,
+                                    }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: 'var(--accent-cyan)' }}>
+                                          <Sparkles size={15} />
+                                          <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                            Initial Decision Rationale &amp; Thesis
+                                          </span>
+                                        </div>
+                                        <span style={{
+                                          fontSize: 11,
+                                          color: 'var(--text-muted)',
+                                          background: 'rgba(255,255,255,0.03)',
+                                          padding: '2px 8px',
+                                          borderRadius: 4,
+                                          border: '1px solid var(--border)',
+                                        }}>
+                                          Source: {p.source || 'bot_hourly'} · {p.lot_label || '$100 Unit'}
+                                        </span>
+                                      </div>
+
+                                      {/* Complete un-truncated proposal reason */}
+                                      <p style={{
+                                        fontSize: 13,
+                                        lineHeight: 1.65,
+                                        color: 'var(--text-primary)',
+                                        whiteSpace: 'pre-wrap',
+                                        wordBreak: 'break-word',
+                                        margin: 0,
+                                      }}>
+                                        {p.proposal_reason || 'No initial thesis text provided.'}
+                                      </p>
+
+                                      {/* Parameter Metrics */}
+                                      <div style={{
+                                        display: 'flex',
+                                        gap: 14,
+                                        fontSize: 11,
+                                        color: 'var(--text-muted)',
+                                        marginTop: 4,
+                                        paddingTop: 10,
+                                        borderTop: '1px solid var(--border)',
+                                        flexWrap: 'wrap',
+                                      }}>
+                                        <span>Proposed RSI: <strong style={{ color: 'var(--text-primary)' }}>{p.proposed_rsi ?? '—'}</strong></span>
+                                        <span>Initial DCA Score: <strong style={{ color: 'var(--accent-cyan)' }}>{p.proposed_dca_score}/100</strong></span>
+                                        <span>Est. Cost: <strong style={{ color: 'var(--text-primary)' }}>{fmtPrice(p.total_estimated_cost)}</strong></span>
+                                        <span>Env: <strong style={{ color: 'var(--text-primary)' }}>{p.trade_env || 'SIMULATE'}</strong></span>
+                                      </div>
+                                    </div>
+
+                                    {/* 2. Bot Re-Evaluation & Review Rationale */}
+                                    <div style={{
+                                      background: 'var(--bg-secondary)',
+                                      border: `1px solid ${p.still_worth_it ? 'rgba(16,185,129,0.35)' : 'rgba(245,158,11,0.35)'}`,
+                                      borderRadius: 10,
+                                      padding: '16px 18px',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      gap: 10,
+                                    }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                                        <div style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: 7,
+                                          color: p.still_worth_it ? 'var(--accent-green)' : 'var(--accent-amber)',
+                                        }}>
+                                          <Activity size={15} />
+                                          <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                            Bot Hourly Review (#{p.bot_review_count || 1})
+                                          </span>
+                                        </div>
+                                        <span style={{
+                                          fontSize: 11,
+                                          fontWeight: 600,
+                                          padding: '2px 8px',
+                                          borderRadius: 4,
+                                          background: p.still_worth_it ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
+                                          color: p.still_worth_it ? 'var(--accent-green)' : 'var(--accent-amber)',
+                                          border: `1px solid ${p.still_worth_it ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'}`,
+                                        }}>
+                                          {p.still_worth_it ? 'STILL WORTH IT' : 'CONDITION FADED'}
+                                        </span>
+                                      </div>
+
+                                      {/* Complete un-truncated bot review note */}
+                                      <p style={{
+                                        fontSize: 13,
+                                        lineHeight: 1.65,
+                                        color: 'var(--text-primary)',
+                                        whiteSpace: 'pre-wrap',
+                                        wordBreak: 'break-word',
+                                        margin: 0,
+                                      }}>
+                                        {p.last_bot_review_note || 'No automated review notes recorded yet. The bot checks proposals hourly or upon clicking "Re-Evaluate Signals".'}
+                                      </p>
+
+                                      {/* Dynamic Drift & Re-Check Stats */}
+                                      <div style={{
+                                        display: 'flex',
+                                        gap: 14,
+                                        fontSize: 11,
+                                        color: 'var(--text-muted)',
+                                        marginTop: 4,
+                                        paddingTop: 10,
+                                        borderTop: '1px solid var(--border)',
+                                        flexWrap: 'wrap',
+                                      }}>
+                                        <span>Current RSI: <strong style={{ color: 'var(--text-primary)' }}>{p.current_rsi ?? '—'}</strong></span>
+                                        <span>Current DCA: <strong style={{ color: p.current_dca_score >= 70 ? 'var(--accent-cyan)' : 'var(--text-primary)' }}>{p.current_dca_score}/100</strong></span>
+                                        <span>Net Drift: <strong style={{ color: isPositive ? 'var(--accent-green)' : 'var(--accent-red)' }}>{fmtPct(drift)}</strong></span>
+                                        {p.last_bot_review_at && (
+                                          <span>Reviewed: <strong style={{ color: 'var(--text-primary)' }}>{new Date(p.last_bot_review_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong></span>
+                                        )}
+                                        {p.execution_note && (
+                                          <span style={{ width: '100%', marginTop: 2, color: 'var(--accent-green)', fontWeight: 500 }}>
+                                            Order Execution: {p.execution_note} {p.moomoo_order_id ? `(ID: ${p.moomoo_order_id})` : ''}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
                       </td>
                     </tr>
                   )
