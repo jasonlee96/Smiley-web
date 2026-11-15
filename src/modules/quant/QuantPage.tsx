@@ -38,6 +38,8 @@ import {
   useTradingWatchlist,
   useBotProposalReview,
   useRlStatus,
+  useTradingSettings,
+  useUpdatePhaseConfig,
   useRefreshNewsBatch,
 } from '../../hooks/useTrading'
 import type { TradingOrderProposal } from '../../types/trading'
@@ -68,6 +70,8 @@ export default function QuantPage() {
   const proposalsQ = useTradingProposals()
   const watchlistQ = useTradingWatchlist()
   const rlStatusQ = useRlStatus()
+  const settingsQ = useTradingSettings()
+  const phaseConfigMut = useUpdatePhaseConfig()
   const reviewMut = useBotProposalReview()
   const newsRefreshMut = useRefreshNewsBatch()
 
@@ -198,15 +202,59 @@ export default function QuantPage() {
     }
   }, [proposals, filter])
 
-  // Chart data: Symbol vs Price Drift %
+  // Chart data: Group same stock (symbol) into a single bar with average Price Drift % & call count
   const chartData = useMemo(() => {
-    return proposals.slice(0, 15).map(p => ({
-      symbol: p.symbol,
-      drift: Number((p.price_drift_pct ?? 0).toFixed(2)),
-      score: p.proposed_dca_score,
-      status: p.status,
-    }))
-  }, [proposals])
+    const bySymbol = new Map<
+      string,
+      {
+        symbol: string
+        driftSum: number
+        count: number
+        scoreSum: number
+        minDrift: number
+        maxDrift: number
+        envs: Set<string>
+      }
+    >()
+
+    for (const p of filteredProposals) {
+      const sym = (p.symbol || 'UNKNOWN').toUpperCase()
+      const d = Number(p.price_drift_pct ?? 0)
+      const s = Number(p.proposed_dca_score ?? 0)
+      const env = p.trade_env || 'SIMULATE'
+      const existing = bySymbol.get(sym)
+      if (!existing) {
+        bySymbol.set(sym, {
+          symbol: sym,
+          driftSum: d,
+          count: 1,
+          scoreSum: s,
+          minDrift: d,
+          maxDrift: d,
+          envs: new Set([env]),
+        })
+      } else {
+        existing.driftSum += d
+        existing.count += 1
+        existing.scoreSum += s
+        if (d < existing.minDrift) existing.minDrift = d
+        if (d > existing.maxDrift) existing.maxDrift = d
+        existing.envs.add(env)
+      }
+    }
+
+    return Array.from(bySymbol.values())
+      .slice(0, 20)
+      .map((item) => ({
+        symbol: item.symbol,
+        drift: Number((item.driftSum / item.count).toFixed(2)),
+        count: item.count,
+        avgScore: Math.round(item.scoreSum / item.count),
+        minDrift: Number(item.minDrift.toFixed(2)),
+        maxDrift: Number(item.maxDrift.toFixed(2)),
+        envs: Array.from(item.envs).join(' & '),
+      }))
+  }, [filteredProposals])
 
   const isLoading = proposalsQ.isLoading
 
@@ -307,6 +355,21 @@ export default function QuantPage() {
           >
             <RefreshCw size={14} className={proposalsQ.isFetching ? 'animate-spin' : ''} />
           </button>
+
+          <Link
+            to="/internal/quant/settings"
+            className="btn-ghost"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              textDecoration: 'none',
+              fontSize: 13,
+              padding: '7px 14px',
+            }}
+          >
+            ⚙️ Bot &amp; Phase Config
+          </Link>
 
           <Link
             to="/internal/trading"
@@ -414,71 +477,173 @@ export default function QuantPage() {
         </GlassCard>
       </div>
 
-      {/* Phase 1: Online RL Contextual Bandit Policy & Macro Regime Context */}
-      {rlStatusQ.data?.policy && (
-        <GlassCard style={{
-          padding: '16px 20px',
-          border: '1px solid rgba(6,182,212,0.25)',
-          background: 'linear-gradient(135deg, rgba(6,182,212,0.05) 0%, rgba(16,185,129,0.02) 100%)',
-        }}>
-          {(() => {
-            const pol = rlStatusQ.data.policy
-            const versionLabel = pol.version ?? pol.policy_version ?? '1.0'
-            const episodesTrained = pol.total_episodes ?? pol.episodes_trained ?? 0
-            const winRatePct = Number(pol.win_rate_pct ?? 0)
-            const cumReward = Number(pol.cumulative_reward_pct ?? pol.cumulative_reward ?? 0)
-            return (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Sparkles size={16} color="var(--accent-cyan)" />
-                  <span style={{ fontFamily: 'Syne', fontWeight: 700, fontSize: 15 }}>
-                    Phase 1: Online RL Decision Policy &amp; Macro Regime Context
-                  </span>
-                  <span style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    padding: '2px 7px',
-                    borderRadius: 4,
-                    background: 'rgba(16,185,129,0.15)',
-                    color: 'var(--accent-green)',
-                    border: '1px solid rgba(16,185,129,0.3)',
-                  }}>
-                    POLICY v{versionLabel} · $0 API COST
-                  </span>
-                </div>
+      {/* Phase 1 & Phase 2: Online RL Contextual Bandit Policy, Macro Regime & Per-Environment Onboarding */}
+      <GlassCard style={{
+        padding: '16px 20px',
+        border: '1px solid rgba(6,182,212,0.25)',
+        background: 'linear-gradient(135deg, rgba(6,182,212,0.05) 0%, rgba(16,185,129,0.02) 100%)',
+      }}>
+        {(() => {
+          const pol = rlStatusQ.data?.policy
+          const versionLabel = pol?.version ?? pol?.policy_version ?? '2.0-bandit-news'
+          const episodesTrained = pol?.total_episodes ?? pol?.episodes_trained ?? 0
+          const winRatePct = Number(pol?.win_rate_pct ?? 0)
+          const cumReward = Number(pol?.cumulative_reward_pct ?? pol?.cumulative_reward ?? 0)
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Sparkles size={16} color="var(--accent-cyan)" />
+                <span style={{ fontFamily: 'Syne', fontWeight: 700, fontSize: 15 }}>
+                  Phase 1 &amp; 2: Online RL Decision Policy, Macro Regime &amp; News Catalyst Engine
+                </span>
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: '2px 7px',
+                  borderRadius: 4,
+                  background: 'rgba(16,185,129,0.15)',
+                  color: 'var(--accent-green)',
+                  border: '1px solid rgba(16,185,129,0.3)',
+                }}>
+                  POLICY v{versionLabel} · $0 API COST
+                </span>
+              </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 12, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
-                  <span>
-                    Episodes Trained:{' '}
-                    <strong style={{ fontFamily: 'IBM Plex Mono', color: 'var(--text-primary)' }}>
-                      {episodesTrained}
-                    </strong>
-                  </span>
-                  <span>
-                    RL Episode Win Rate:{' '}
-                    <strong style={{
-                      fontFamily: 'IBM Plex Mono',
-                      color: winRatePct >= 50 ? 'var(--accent-green)' : 'var(--accent-amber)',
-                    }}>
-                      {winRatePct.toFixed(1)}%
-                    </strong>
-                  </span>
-                  <span>
-                    Cumulative Reward:{' '}
-                    <strong style={{
-                      fontFamily: 'IBM Plex Mono',
-                      color: cumReward >= 0 ? 'var(--accent-green)' : 'var(--accent-red)',
-                    }}>
-                      {cumReward >= 0 ? '+' : ''}
-                      {cumReward.toFixed(2)}%
-                    </strong>
-                  </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 12, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+                <span>
+                  Episodes Trained:{' '}
+                  <strong style={{ fontFamily: 'IBM Plex Mono', color: 'var(--text-primary)' }}>
+                    {episodesTrained}
+                  </strong>
+                </span>
+                <span>
+                  RL Episode Win Rate:{' '}
+                  <strong style={{
+                    fontFamily: 'IBM Plex Mono',
+                    color: winRatePct >= 50 ? 'var(--accent-green)' : 'var(--accent-amber)',
+                  }}>
+                    {winRatePct.toFixed(1)}%
+                  </strong>
+                </span>
+                <span>
+                  Cumulative Reward:{' '}
+                  <strong style={{
+                    fontFamily: 'IBM Plex Mono',
+                    color: cumReward >= 0 ? 'var(--accent-green)' : 'var(--accent-red)',
+                  }}>
+                    {cumReward >= 0 ? '+' : ''}
+                    {cumReward.toFixed(2)}%
+                  </strong>
+                </span>
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Phase 1 & Phase 2 Per-Environment Onboarding Configuration (Defaulted ON for SIMULATE & REAL) */}
+        {(() => {
+          const cfg = rlStatusQ.data?.onboarding_config || {
+            phase1_simulate_enabled: settingsQ.data?.phase1_simulate_enabled !== false,
+            phase1_real_enabled: settingsQ.data?.phase1_real_enabled !== false,
+            phase2_simulate_enabled: settingsQ.data?.phase2_simulate_enabled !== false,
+            phase2_real_enabled: settingsQ.data?.phase2_real_enabled !== false,
+          }
+          const toggleBtnStyle = (active: boolean, isReal: boolean) => ({
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '5px 10px',
+            borderRadius: 6,
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: phaseConfigMut.isPending ? 'wait' : 'pointer',
+            border: active
+              ? isReal
+                ? '1px solid rgba(245, 158, 11, 0.55)'
+                : '1px solid rgba(16, 185, 129, 0.5)'
+              : '1px solid var(--border)',
+            background: active
+              ? isReal
+                ? 'rgba(245, 158, 11, 0.16)'
+                : 'rgba(16, 185, 129, 0.15)'
+              : 'var(--bg-secondary)',
+            color: active ? (isReal ? 'var(--accent-amber)' : 'var(--accent-green)') : 'var(--text-muted)',
+            fontFamily: 'IBM Plex Mono',
+          })
+          return (
+            <div
+              style={{
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                padding: '10px 14px',
+                marginBottom: 12,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 10,
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.03em' }}>
+                  ⚙️ PHASE 1 &amp; PHASE 2 ONBOARDING CONFIG (SIMULATE &amp; REAL — DEFAULTED ON)
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                  Toggle Phase 1 (Macro Regime, Relative Strength &amp; RL Contextual Bandit) and Phase 2 (FinBERT News Sentiment &amp; Event Risk Guardrails) per environment.
                 </div>
               </div>
-            )
-          })()}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  disabled={phaseConfigMut.isPending}
+                  onClick={() =>
+                    phaseConfigMut.mutate({ phase1_simulate_enabled: !cfg.phase1_simulate_enabled })
+                  }
+                  style={toggleBtnStyle(cfg.phase1_simulate_enabled, false)}
+                  title="Toggle Phase 1 (Macro Regime, 20d Alpha & RL Contextual Bandit) for SIMULATE"
+                >
+                  🧪 SIMULATE Phase 1: {cfg.phase1_simulate_enabled ? 'ON ●' : 'OFF ○'}
+                </button>
+                <button
+                  type="button"
+                  disabled={phaseConfigMut.isPending}
+                  onClick={() =>
+                    phaseConfigMut.mutate({ phase2_simulate_enabled: !cfg.phase2_simulate_enabled })
+                  }
+                  style={toggleBtnStyle(cfg.phase2_simulate_enabled, false)}
+                  title="Toggle Phase 2 (FinBERT News Catalyst & Event Risk Guardrail) for SIMULATE"
+                >
+                  🧪 SIMULATE Phase 2: {cfg.phase2_simulate_enabled ? 'ON ●' : 'OFF ○'}
+                </button>
+                <button
+                  type="button"
+                  disabled={phaseConfigMut.isPending}
+                  onClick={() =>
+                    phaseConfigMut.mutate({ phase1_real_enabled: !cfg.phase1_real_enabled })
+                  }
+                  style={toggleBtnStyle(cfg.phase1_real_enabled, true)}
+                  title="Toggle Phase 1 (Macro Regime, 20d Alpha & RL Contextual Bandit) for REAL"
+                >
+                  💵 REAL Phase 1: {cfg.phase1_real_enabled ? 'ON ●' : 'OFF ○'}
+                </button>
+                <button
+                  type="button"
+                  disabled={phaseConfigMut.isPending}
+                  onClick={() =>
+                    phaseConfigMut.mutate({ phase2_real_enabled: !cfg.phase2_real_enabled })
+                  }
+                  style={toggleBtnStyle(cfg.phase2_real_enabled, true)}
+                  title="Toggle Phase 2 (FinBERT News Catalyst & Event Risk Guardrail) for REAL"
+                >
+                  💵 REAL Phase 2: {cfg.phase2_real_enabled ? 'ON ●' : 'OFF ○'}
+                </button>
+              </div>
+            </div>
+          )
+        })()}
 
-          {/* 3 Macro Regime Cards (US, SGX, CRYPTO) */}
+        {/* 3 Macro Regime Cards (US, SGX, CRYPTO) */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
             {(['US', 'SGX', 'CRYPTO'] as const).map((bucket) => {
               const reg = rlStatusQ.data?.regimes?.[bucket]
@@ -597,16 +762,16 @@ export default function QuantPage() {
               </button>
             </div>
 
-            {rlStatusQ.data.news_feed && rlStatusQ.data.news_feed.length > 0 ? (
+            {rlStatusQ.data?.news_feed && rlStatusQ.data.news_feed.length > 0 ? (
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
                 gap: 8,
               }}>
-                {rlStatusQ.data.news_feed.slice(0, 8).map((nf) => {
+                {rlStatusQ.data.news_feed.slice(0, 12).map((nf) => {
                   const score = Number(nf.avg_sentiment_score ?? nf.sentiment_score ?? 0)
-                  const isBull = score >= 0.12
-                  const isBear = score <= -0.12
+                  const isBull = score >= 0.08 || nf.dca_score_adjustment > 0
+                  const isBear = score <= -0.08 || nf.dca_score_adjustment < 0
                   const sColor = isBull ? 'var(--accent-green)' : isBear ? 'var(--accent-red)' : 'var(--text-muted)'
                   const sBg = isBull ? 'rgba(16, 185, 129, 0.12)' : isBear ? 'rgba(239, 68, 68, 0.12)' : 'rgba(148, 163, 184, 0.12)'
                   return (
@@ -670,17 +835,18 @@ export default function QuantPage() {
               </p>
             )}
           </div>
-        </GlassCard>
-      )}
+      </GlassCard>
 
       {/* Chart: Price Drift by Recent Prediction */}
       {chartData.length > 0 && (
         <GlassCard style={{ padding: '20px 18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
             <div>
-              <p style={{ fontWeight: 600, fontSize: 14 }}>Price Drift Distribution (% Return Since Signal)</p>
+              <p style={{ fontWeight: 600, fontSize: 14 }}>
+                Price Drift Distribution by Stock (% Avg Return Since Signal · Grouped by Ticker)
+              </p>
               <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                Measures the percentage movement from the model's proposed entry price to the current price.
+                Aggregates all signals for the same stock into a single bar showing average percentage drift from proposed entry to current live price.
               </p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 11, color: 'var(--text-muted)' }}>
@@ -712,7 +878,12 @@ export default function QuantPage() {
                   borderRadius: 8,
                   fontSize: 12,
                 }}
-                formatter={(val: any) => [`${val}%`, 'Price Drift']}
+                formatter={(val: any, _name: any, props: any) => {
+                  const p = props?.payload
+                  if (!p) return [`${val}%`, 'Avg Price Drift']
+                  const callsLabel = p.count > 1 ? ` (${p.count} signals grouped · Range ${p.minDrift}% to ${p.maxDrift}%)` : ' (1 signal)'
+                  return [`${val >= 0 ? '+' : ''}${val}%${callsLabel} · Avg DCA ${p.avgScore}/100 [${p.envs}]`, 'Avg Price Drift']
+                }}
               />
               <ReferenceLine y={0} stroke="var(--border)" />
               <Bar dataKey="drift" radius={[4, 4, 0, 0]}>
@@ -923,18 +1094,23 @@ export default function QuantPage() {
                   const drift = p.price_drift_pct ?? 0
                   const isPositive = drift >= 0
                   const isExpanded = expandAll || expandedIds.has(p.id)
+                  const isWorkingOnBroker = p.status === 'executed' && p.accum_logged === false
                   const statusBg =
-                    p.status === 'executed'
-                      ? 'rgba(16,185,129,0.14)'
-                      : p.status === 'pending_approval'
-                        ? 'rgba(6,182,212,0.14)'
-                        : 'rgba(239,68,68,0.14)'
+                    isWorkingOnBroker
+                      ? 'rgba(245,158,11,0.16)'
+                      : p.status === 'executed'
+                        ? 'rgba(16,185,129,0.14)'
+                        : p.status === 'pending_approval'
+                          ? 'rgba(6,182,212,0.14)'
+                          : 'rgba(239,68,68,0.14)'
                   const statusColor =
-                    p.status === 'executed'
-                      ? 'var(--accent-green)'
-                      : p.status === 'pending_approval'
-                        ? 'var(--accent-cyan)'
-                        : 'var(--accent-red)'
+                    isWorkingOnBroker
+                      ? 'var(--accent-amber)'
+                      : p.status === 'executed'
+                        ? 'var(--accent-green)'
+                        : p.status === 'pending_approval'
+                          ? 'var(--accent-cyan)'
+                          : 'var(--accent-red)'
 
                   return (
                     <tr key={`group-${p.id}`} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -1047,14 +1223,14 @@ export default function QuantPage() {
                                       fontFamily: 'IBM Plex Mono',
                                       padding: '1px 5px',
                                       borderRadius: 4,
-                                      background: p.news_sentiment_score >= 0.12
+                                      background: p.news_sentiment_score >= 0.08
                                         ? 'rgba(16,185,129,0.12)'
-                                        : p.news_sentiment_score <= -0.12
+                                        : p.news_sentiment_score <= -0.08
                                         ? 'rgba(239,68,68,0.12)'
                                         : 'rgba(148,163,184,0.12)',
-                                      color: p.news_sentiment_score >= 0.12
+                                      color: p.news_sentiment_score >= 0.08
                                         ? 'var(--accent-green)'
-                                        : p.news_sentiment_score <= -0.12
+                                        : p.news_sentiment_score <= -0.08
                                         ? 'var(--accent-red)'
                                         : 'var(--text-muted)',
                                     }} title={p.news_headline_summary || `News Catalyst: ${p.news_catalyst_tag || 'general'}`}>
@@ -1110,7 +1286,9 @@ export default function QuantPage() {
                                     color: statusColor,
                                     textTransform: 'uppercase',
                                   }}>
-                                    {p.status.replace(/_/g, ' ')}
+                                    {isWorkingOnBroker
+                                      ? `WORKING (${p.broker_order_status || 'SUBMITTED'} · ${p.filled_qty ?? 0}/${p.qty})`
+                                      : p.status.replace(/_/g, ' ')}
                                   </span>
                                   {p.still_worth_it ? (
                                     <span style={{ fontSize: 10, color: 'var(--accent-green)', fontWeight: 500 }} title="Bot re-evaluated and confirmed setup is still valid">
@@ -1223,7 +1401,7 @@ export default function QuantPage() {
                                           <span>Rel. Strength vs Benchmark: <strong style={{ color: p.relative_strength_pct >= 0 ? 'var(--accent-green)' : 'var(--accent-amber)' }}>{fmtPct(p.relative_strength_pct)}</strong></span>
                                         )}
                                         {p.news_sentiment_score != null && (
-                                          <span>News Sentiment: <strong style={{ color: p.news_sentiment_score >= 0.12 ? 'var(--accent-green)' : p.news_sentiment_score <= -0.12 ? 'var(--accent-red)' : 'var(--text-primary)' }}>{p.news_sentiment_score >= 0 ? '+' : ''}{Number(p.news_sentiment_score).toFixed(2)} ({p.news_catalyst_tag || 'general'})</strong></span>
+                                          <span>News Sentiment: <strong style={{ color: p.news_sentiment_score >= 0.08 ? 'var(--accent-green)' : p.news_sentiment_score <= -0.08 ? 'var(--accent-red)' : 'var(--text-primary)' }}>{p.news_sentiment_score >= 0 ? '+' : ''}{Number(p.news_sentiment_score).toFixed(2)} ({p.news_catalyst_tag || 'general'})</strong></span>
                                         )}
                                         <span>Est. Cost: <strong style={{ color: 'var(--text-primary)' }}>{fmtPrice(p.total_estimated_cost)}</strong></span>
                                         <span>Env: <strong style={{ color: 'var(--text-primary)' }}>{p.trade_env || 'SIMULATE'}</strong></span>

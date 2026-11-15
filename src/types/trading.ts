@@ -120,6 +120,33 @@ export interface TradingAiAnalysis {
     position_sizing_note: string
     invalidation: string
   }
+  phase1?: {
+    enabled: boolean
+    macro_regime: string
+    macro_summary: string
+    benchmark_symbol: string
+    alpha_5d_pct: number
+    alpha_20d_pct: number
+    rs_label: string
+    rl_action: string
+    rl_q_score: number
+    rl_confidence_pct: number
+    dca_score: number
+    dca_label: string
+    rationale_tag: string
+  }
+  phase2?: {
+    enabled: boolean
+    sentiment_score: number
+    sentiment_label: string
+    dominant_catalyst: string
+    event_risk_flag: string
+    dca_score_adjustment: number
+    article_count: number
+    top_headline: string | null
+    top_publisher: string | null
+    summary_line: string
+  }
   engine: 'quant-engine' | 'claude-cli'
   prompt_for_chat: string
   generated_at: string
@@ -199,6 +226,17 @@ export interface TradingMonitorSettings {
   notify_extreme_rsi: boolean
   notify_price_targets: boolean
   scan_markets?: string[]
+  phase1_simulate_enabled?: boolean
+  phase1_real_enabled?: boolean
+  phase2_simulate_enabled?: boolean
+  phase2_real_enabled?: boolean
+}
+
+export interface PhaseOnboardingConfig {
+  phase1_simulate_enabled: boolean
+  phase1_real_enabled: boolean
+  phase2_simulate_enabled: boolean
+  phase2_real_enabled: boolean
 }
 
 export interface SnapshotHistoryItem {
@@ -355,6 +393,10 @@ export interface TradingOrderProposal {
   last_bot_review_note: string | null
   last_bot_review_at: string | null
   moomoo_order_id: string | null
+  broker_order_status?: string | null
+  filled_qty?: number | null
+  filled_avg_price?: number | null
+  accum_logged?: boolean
   execution_note: string | null
   created_at: string
   reviewed_at: string | null
@@ -479,4 +521,5 @@ export interface RlStatusResponse {
     CRYPTO: MarketRegimeSnapshot
   }
   news_feed?: TickerNewsSentimentSummary[]
+  onboarding_config?: PhaseOnboardingConfig
 }

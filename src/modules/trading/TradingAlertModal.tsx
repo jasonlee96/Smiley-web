@@ -68,6 +68,10 @@ export default function TradingAlertModal({
     notify_extreme_rsi: true,
     notify_price_targets: true,
     scan_markets: ['US', 'SGX', 'CRYPTO'],
+    phase1_simulate_enabled: true,
+    phase1_real_enabled: true,
+    phase2_simulate_enabled: true,
+    phase2_real_enabled: true,
   })
   const [targetEdits, setTargetEdits] = useState<
     Record<number, { above: string; below: string; enabled: boolean; saved?: boolean }>
@@ -651,6 +655,72 @@ export default function TradingAlertModal({
                             }}
                           />
                           {m.label}
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Phase 1 & Phase 2 Quant Engine Onboarding (Defaulted ON for SIMULATE & REAL) */}
+                <div style={{ paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
+                    ⚙️ Phase 1 &amp; Phase 2 Quant Engine Onboarding (SIMULATE &amp; REAL — Defaulted ON)
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>
+                    Enable or disable Phase 1 (Macro Regime, 20d Relative Strength Alpha &amp; RL Contextual Bandit) and Phase 2 (FinBERT News Sentiment &amp; Severe Event Risk Guardrail) independently for SIMULATE and REAL:
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
+                    {[
+                      {
+                        key: 'phase1_simulate_enabled' as const,
+                        label: '🧪 SIMULATE · Phase 1 (RL & Macro)',
+                        desc: 'SPY/VIX/STI/BTC Regime + RL Q-Edge',
+                      },
+                      {
+                        key: 'phase2_simulate_enabled' as const,
+                        label: '🧪 SIMULATE · Phase 2 (News Catalyst)',
+                        desc: 'FinBERT News Sentiment + Risk Guardrail',
+                      },
+                      {
+                        key: 'phase1_real_enabled' as const,
+                        label: '💵 REAL · Phase 1 (RL & Macro)',
+                        desc: 'SPY/VIX/STI/BTC Regime + RL Q-Edge',
+                      },
+                      {
+                        key: 'phase2_real_enabled' as const,
+                        label: '💵 REAL · Phase 2 (News Catalyst)',
+                        desc: 'FinBERT News Sentiment + Risk Guardrail',
+                      },
+                    ].map((item) => {
+                      const checked = form[item.key] !== false
+                      return (
+                        <label
+                          key={item.key}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: 8,
+                            padding: '8px 10px',
+                            borderRadius: 7,
+                            background: checked ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255,255,255,0.02)',
+                            border: checked ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid var(--border)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => setForm((f) => ({ ...f, [item.key]: e.target.checked }))}
+                            style={{ marginTop: 2 }}
+                          />
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: checked ? '#34d399' : 'var(--text-secondary)' }}>
+                              {item.label}
+                            </div>
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                              {item.desc}
+                            </div>
+                          </div>
                         </label>
                       )
                     })}

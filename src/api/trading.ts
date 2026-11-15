@@ -15,6 +15,7 @@ import type {
   BotWalletResponse,
   MarketDiscoveryItem,
   RlStatusResponse,
+  PhaseOnboardingConfig,
 } from '../types/trading'
 
 export const tradingApi = {
@@ -198,6 +199,11 @@ export const tradingApi = {
 
   getRlStatus: () =>
     client.get<RlStatusResponse>('/trading/rl-status', { timeout: 30000 }).then((r) => r.data),
+
+  updatePhaseConfig: (payload: Partial<PhaseOnboardingConfig>) =>
+    client
+      .put<{ ok: boolean; onboarding_config: PhaseOnboardingConfig }>('/trading/phase-config', payload)
+      .then((r) => r.data),
 
   refreshNewsBatch: () =>
     client.post('/trading/news-refresh', {}, { timeout: 45000 }).then((r) => r.data),

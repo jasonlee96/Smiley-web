@@ -154,6 +154,146 @@ export default function AiThesisCard({ symbol, analysis, onRunClaudeCli, isRunni
         {analysis.summary}
       </div>
 
+      {/* Phase 1 & Phase 2 Quant & News Telemetry Banner */}
+      {(analysis.phase1 || analysis.phase2) && (
+        <div
+          className="trading-two-col"
+          style={{
+            gap: 12,
+          }}
+        >
+          {analysis.phase1 && (
+            <div
+              style={{
+                padding: '12px 15px',
+                borderRadius: 10,
+                background: 'rgba(6, 182, 212, 0.06)',
+                border: '1px solid rgba(6, 182, 212, 0.24)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent-cyan)', fontFamily: 'IBM Plex Mono, monospace', letterSpacing: '0.06em' }}>
+                  🤖 PHASE 1 · MACRO REGIME, 20D ALPHA & RL POLICY
+                </span>
+                <span style={{
+                  fontSize: 10,
+                  fontFamily: 'IBM Plex Mono, monospace',
+                  fontWeight: 700,
+                  padding: '2px 7px',
+                  borderRadius: 4,
+                  background: analysis.phase1.dca_score >= 68 ? 'rgba(16,185,129,0.16)' : 'rgba(255,255,255,0.08)',
+                  color: analysis.phase1.dca_score >= 68 ? '#34d399' : 'var(--text-primary)',
+                }}>
+                  DCA {analysis.phase1.dca_score}/100 · {analysis.phase1.dca_label}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 11, fontFamily: 'IBM Plex Mono, monospace' }}>
+                <span style={{ padding: '2px 7px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)' }}>
+                  Regime: <strong>{analysis.phase1.macro_regime}</strong>
+                </span>
+                <span style={{
+                  padding: '2px 7px',
+                  borderRadius: 4,
+                  background: analysis.phase1.alpha_20d_pct >= 0 ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+                  color: analysis.phase1.alpha_20d_pct >= 0 ? '#34d399' : '#f87171',
+                }}>
+                  20d Alpha vs {analysis.phase1.benchmark_symbol}: {analysis.phase1.alpha_20d_pct >= 0 ? '+' : ''}{analysis.phase1.alpha_20d_pct.toFixed(1)}%
+                </span>
+                <span style={{
+                  padding: '2px 7px',
+                  borderRadius: 4,
+                  background: 'rgba(168,85,247,0.14)',
+                  color: '#c084fc',
+                }}>
+                  RL Q-Edge: {analysis.phase1.rl_q_score >= 0 ? '+' : ''}{analysis.phase1.rl_q_score.toFixed(2)}% ({analysis.phase1.rl_action.toUpperCase()})
+                </span>
+              </div>
+              {analysis.phase1.macro_summary && (
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                  {analysis.phase1.macro_summary}
+                </div>
+              )}
+            </div>
+          )}
+
+          {analysis.phase2 && (() => {
+            const p2 = analysis.phase2
+            const isP2Bull = p2.sentiment_score >= 0.08 || p2.sentiment_label.toUpperCase().includes('BULL') || p2.sentiment_label.toUpperCase().includes('POSITIVE')
+            const isP2Bear = p2.sentiment_score <= -0.08 || p2.sentiment_label.toUpperCase().includes('BEAR') || p2.sentiment_label.toUpperCase().includes('NEGATIVE')
+            return (
+            <div
+              style={{
+                padding: '12px 15px',
+                borderRadius: 10,
+                background:
+                  p2.event_risk_flag === 'severe_negative_catalyst'
+                    ? 'rgba(239, 68, 68, 0.09)'
+                    : isP2Bull
+                      ? 'rgba(16, 185, 129, 0.06)'
+                      : 'rgba(168, 85, 247, 0.06)',
+                border: `1px solid ${
+                  p2.event_risk_flag === 'severe_negative_catalyst'
+                    ? 'rgba(239, 68, 68, 0.35)'
+                    : isP2Bull
+                      ? 'rgba(16, 185, 129, 0.24)'
+                      : 'rgba(168, 85, 247, 0.24)'
+                }`,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#c084fc', fontFamily: 'IBM Plex Mono, monospace', letterSpacing: '0.06em' }}>
+                  📰 PHASE 2 · FINBERT NEWS SENTIMENT & CATALYST
+                </span>
+                <span style={{
+                  fontSize: 10,
+                  fontFamily: 'IBM Plex Mono, monospace',
+                  fontWeight: 700,
+                  padding: '2px 7px',
+                  borderRadius: 4,
+                  background: isP2Bull
+                    ? 'rgba(16,185,129,0.16)'
+                    : isP2Bear
+                      ? 'rgba(239,68,68,0.16)'
+                      : 'rgba(255,255,255,0.08)',
+                  color: isP2Bull
+                    ? '#34d399'
+                    : isP2Bear
+                      ? '#f87171'
+                      : 'var(--text-primary)',
+                }}>
+                  {p2.sentiment_label.toUpperCase()} ({p2.sentiment_score >= 0 ? '+' : ''}{p2.sentiment_score.toFixed(2)}) · {p2.dominant_catalyst.toUpperCase()}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 11, fontFamily: 'IBM Plex Mono, monospace' }}>
+                <span style={{ padding: '2px 7px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)' }}>
+                  Articles: {p2.article_count}
+                </span>
+                <span style={{ padding: '2px 7px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)' }}>
+                  DCA Adj: {p2.dca_score_adjustment >= 0 ? '+' : ''}{p2.dca_score_adjustment} pts
+                </span>
+                {p2.event_risk_flag === 'severe_negative_catalyst' && (
+                  <span style={{ padding: '2px 7px', borderRadius: 4, background: 'rgba(239,68,68,0.2)', color: '#f87171', fontWeight: 700 }}>
+                    ⚠️ SEVERE NEGATIVE CATALYST GUARDRAIL
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                {p2.top_headline
+                  ? `"${p2.top_headline}" (${p2.top_publisher || 'News'})`
+                  : p2.summary_line}
+              </div>
+            </div>
+            )
+          })()}
+        </div>
+      )}
+
       {/* Actionable Trade Setup Ticket */}
       <div style={{
         padding: '16px 18px',

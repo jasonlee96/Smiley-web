@@ -282,11 +282,34 @@ export function useRlStatus() {
   })
 }
 
+export function useUpdatePhaseConfig() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: tradingApi.updatePhaseConfig,
+    onSuccess: (res) => {
+      if (res?.onboarding_config) {
+        qc.setQueryData(['trading', 'rl-status'], (prev: any) =>
+          prev ? { ...prev, onboarding_config: res.onboarding_config } : prev,
+        )
+      }
+      qc.invalidateQueries({ queryKey: ['trading', 'rl-status'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'settings'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'dca-ranking'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'proposals'] })
+    },
+  })
+}
+
 export function useRefreshNewsBatch() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => tradingApi.refreshNewsBatch(),
-    onSuccess: () => {
+    onSuccess: (res: any) => {
+      if (res?.news_feed) {
+        qc.setQueryData(['trading', 'rl-status'], (prev: any) =>
+          prev ? { ...prev, news_feed: res.news_feed } : prev,
+        )
+      }
       qc.invalidateQueries({ queryKey: ['trading', 'rl-status'] })
       qc.invalidateQueries({ queryKey: ['trading', 'proposals'] })
     },

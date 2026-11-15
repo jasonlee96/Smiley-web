@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Save, Play, CheckCircle, XCircle, RefreshCw, AlertTriangle, MessageSquare } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Save, Play, CheckCircle, XCircle, RefreshCw, AlertTriangle, MessageSquare, ArrowLeft, LineChart } from 'lucide-react'
 import GlassCard from '../../components/GlassCard'
 import Spinner from '../../components/Spinner'
 import {
@@ -7,6 +8,7 @@ import {
   useSaveQuantConfig, useStartMoomoo, useStopMoomoo, useTriggerScheduler,
   useDiscoverMoomooAccounts, useMoomooVerifyStatus, useSubmitMoomooVerifyCode
 } from '../../hooks/useQuant'
+import { useTradingSettings, useUpdatePhaseConfig } from '../../hooks/useTrading'
 
 function formatAccountLabel(accType?: string, trdMarketAuth?: string[]): string {
   if (!accType) return ''
@@ -17,6 +19,8 @@ function formatAccountLabel(accType?: string, trdMarketAuth?: string[]): string 
 export default function SettingsPage() {
   const configQ = useQuantConfig()
   const statusQ = useQuantContainerStatus()
+  const tradingSettingsQ = useTradingSettings()
+  const updatePhaseConfig = useUpdatePhaseConfig()
   const saveConfig = useSaveQuantConfig()
   const startMoomoo = useStartMoomoo()
   const stopMoomoo = useStopMoomoo()
@@ -109,14 +113,32 @@ export default function SettingsPage() {
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontFamily: 'Syne', fontWeight: 800, fontSize: 28, letterSpacing: '-0.03em' }}>Bot Settings</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>moomoo OpenD credentials & container control</p>
+          <h1 style={{ fontFamily: 'Syne', fontWeight: 800, fontSize: 28, letterSpacing: '-0.03em' }}>Bot &amp; Phase Settings</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>Phase 1 &amp; Phase 2 onboarding config, moomoo OpenD credentials &amp; container control</p>
         </div>
-        <button className="btn-ghost" onClick={() => { configQ.refetch(); statusQ.refetch() }} style={{ padding: '6px 10px' }}>
-          <RefreshCw size={14} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <Link
+            to="/internal/quant"
+            className="btn-ghost"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none', fontSize: 13, padding: '6px 12px' }}
+          >
+            <ArrowLeft size={14} />
+            Back to Model Perf
+          </Link>
+          <Link
+            to="/internal/trading"
+            className="btn-ghost"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none', fontSize: 13, padding: '6px 12px' }}
+          >
+            <LineChart size={14} />
+            Trading Hub
+          </Link>
+          <button className="btn-ghost" onClick={() => { configQ.refetch(); statusQ.refetch(); tradingSettingsQ.refetch() }} style={{ padding: '6px 10px' }}>
+            <RefreshCw size={14} />
+          </button>
+        </div>
       </div>
 
       {/* Container status */}
@@ -210,6 +232,155 @@ export default function SettingsPage() {
           </div>
         </GlassCard>
       )}
+
+      {/* Phase 1 & Phase 2 Onboarding Config (Defaulted ON for SIMULATE & REAL) */}
+      <GlassCard style={{ padding: 24, border: '1px solid rgba(6, 182, 212, 0.35)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+          <div>
+            <p style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)' }}>
+              ⚙️ Phase 1 &amp; Phase 2 Quant Engine Onboarding (SIMULATE &amp; REAL)
+            </p>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+              Configure whether Phase 1 (Macro Regime, 20d Relative Strength Alpha &amp; RL Contextual Bandit Q-Edge) and Phase 2 (FinBERT News Sentiment &amp; Severe Event Risk Guardrails) are active for SIMULATE and REAL evaluations. Defaulted ON for both environments.
+            </p>
+          </div>
+          <span style={{
+            fontSize: 11,
+            fontWeight: 700,
+            padding: '3px 9px',
+            borderRadius: 6,
+            background: 'rgba(16, 185, 129, 0.15)',
+            color: 'var(--accent-green)',
+            border: '1px solid rgba(16, 185, 129, 0.35)',
+            fontFamily: 'IBM Plex Mono',
+          }}>
+            DEFAULT: ON (SIMULATE &amp; REAL)
+          </span>
+        </div>
+
+        {(() => {
+          const p1Sim = tradingSettingsQ.data?.phase1_simulate_enabled !== false
+          const p2Sim = tradingSettingsQ.data?.phase2_simulate_enabled !== false
+          const p1Real = tradingSettingsQ.data?.phase1_real_enabled !== false
+          const p2Real = tradingSettingsQ.data?.phase2_real_enabled !== false
+
+          const renderCard = (
+            envLabel: string,
+            isReal: boolean,
+            p1: boolean,
+            p2: boolean,
+            onToggleP1: () => void,
+            onToggleP2: () => void,
+          ) => (
+            <div
+              style={{
+                background: 'var(--bg-secondary)',
+                border: isReal ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(6, 182, 212, 0.35)',
+                borderRadius: 10,
+                padding: '14px 16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{
+                  fontSize: 12,
+                  fontWeight: 800,
+                  color: isReal ? 'var(--accent-amber, #fbbf24)' : 'var(--accent-cyan)',
+                  fontFamily: 'IBM Plex Mono',
+                }}>
+                  {envLabel}
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  {p1 && p2 ? 'Phase 1 + 2 Active' : p1 ? 'Phase 1 Only' : p2 ? 'Phase 2 Only' : 'Base Technicals Only'}
+                </span>
+              </div>
+
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                  padding: '8px 10px',
+                  borderRadius: 8,
+                  background: p1 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255,255,255,0.02)',
+                  border: p1 ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--border)',
+                  cursor: 'pointer',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Phase 1: Macro Regime, 20d Alpha &amp; RL Contextual Bandit
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    SPY/VIX/10Y/STI/BTC regime scoring + online RL policy Q-Edge (±15 pts)
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={p1}
+                  disabled={updatePhaseConfig.isPending}
+                  onChange={onToggleP1}
+                  style={{ width: 18, height: 18, cursor: 'pointer' }}
+                />
+              </label>
+
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                  padding: '8px 10px',
+                  borderRadius: 8,
+                  background: p2 ? 'rgba(6, 182, 212, 0.1)' : 'rgba(255,255,255,0.02)',
+                  border: p2 ? '1px solid rgba(6, 182, 212, 0.35)' : '1px solid var(--border)',
+                  cursor: 'pointer',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Phase 2: FinBERT News Sentiment &amp; Catalyst Guardrails
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    Yahoo/Google News catalyst scoring (±18 pts) + falling-knife auto-cancel
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={p2}
+                  disabled={updatePhaseConfig.isPending}
+                  onChange={onToggleP2}
+                  style={{ width: 18, height: 18, cursor: 'pointer' }}
+                />
+              </label>
+            </div>
+          )
+
+          return (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 14 }}>
+              {renderCard(
+                '🧪 SIMULATE (Paper Trading)',
+                false,
+                p1Sim,
+                p2Sim,
+                () => updatePhaseConfig.mutate({ phase1_simulate_enabled: !p1Sim }),
+                () => updatePhaseConfig.mutate({ phase2_simulate_enabled: !p2Sim }),
+              )}
+              {renderCard(
+                '💵 REAL (Live Moomoo Brokerage)',
+                true,
+                p1Real,
+                p2Real,
+                () => updatePhaseConfig.mutate({ phase1_real_enabled: !p1Real }),
+                () => updatePhaseConfig.mutate({ phase2_real_enabled: !p2Real }),
+              )}
+            </div>
+          )
+        })()}
+      </GlassCard>
 
       {/* Config form */}
       <GlassCard style={{ padding: 24 }}>

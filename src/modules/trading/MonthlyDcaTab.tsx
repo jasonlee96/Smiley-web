@@ -15,6 +15,8 @@ import {
   useMarketDiscovery,
   useRefreshMarketDiscovery,
   useAddWatchlist,
+  useRlStatus,
+  useUpdatePhaseConfig,
 } from '../../hooks/useTrading'
 import type {
   AssetType,
@@ -106,6 +108,8 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
   const { data: discoveryItems = [], isLoading: discoveryLoading } = useMarketDiscovery()
   const refreshDiscoveryMutation = useRefreshMarketDiscovery()
   const addWatchlistMutation = useAddWatchlist()
+  const { data: rlStatusData } = useRlStatus()
+  const updatePhaseConfigMutation = useUpdatePhaseConfig()
 
   // Modal state for logging a monthly buy
   const [logModalOpen, setLogModalOpen] = useState(false)
@@ -921,6 +925,88 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                   </span>
                 )}
               </div>
+
+              {/* Phase 1 & Phase 2 Onboarding Toggles for SIMULATE & REAL (Defaulted ON) */}
+              {(() => {
+                const pCfg = rlStatusData?.onboarding_config || {
+                  phase1_simulate_enabled: true,
+                  phase1_real_enabled: true,
+                  phase2_simulate_enabled: true,
+                  phase2_real_enabled: true,
+                }
+                const isReal = selectedTradeEnv === 'REAL'
+                const p1On = isReal ? pCfg.phase1_real_enabled : pCfg.phase1_simulate_enabled
+                const p2On = isReal ? pCfg.phase2_real_enabled : pCfg.phase2_simulate_enabled
+                return (
+                  <div
+                    style={{
+                      borderTop: '1px solid rgba(51, 65, 85, 0.55)',
+                      paddingTop: '0.42rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '0.45rem',
+                    }}
+                  >
+                    <span style={{ fontSize: '0.66rem', color: '#cbd5e1', fontWeight: 700 }}>
+                      ⚙️ {selectedTradeEnv} Quant Engine Onboarding (Defaulted ON):
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        disabled={updatePhaseConfigMutation.isPending}
+                        onClick={() =>
+                          updatePhaseConfigMutation.mutate(
+                            isReal
+                              ? { phase1_real_enabled: !p1On }
+                              : { phase1_simulate_enabled: !p1On },
+                          )
+                        }
+                        style={{
+                          fontSize: '0.64rem',
+                          fontWeight: 800,
+                          padding: '0.16rem 0.5rem',
+                          borderRadius: '0.32rem',
+                          cursor: 'pointer',
+                          fontFamily: 'monospace',
+                          border: p1On ? '1px solid rgba(16, 185, 129, 0.5)' : '1px solid #334155',
+                          background: p1On ? 'rgba(16, 185, 129, 0.16)' : '#0f172a',
+                          color: p1On ? '#34d399' : '#64748b',
+                        }}
+                        title="Toggle Phase 1 (Macro Regime, 20d Alpha & RL Contextual Bandit)"
+                      >
+                        Phase 1 (RL &amp; Macro): {p1On ? 'ON ●' : 'OFF ○'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={updatePhaseConfigMutation.isPending}
+                        onClick={() =>
+                          updatePhaseConfigMutation.mutate(
+                            isReal
+                              ? { phase2_real_enabled: !p2On }
+                              : { phase2_simulate_enabled: !p2On },
+                          )
+                        }
+                        style={{
+                          fontSize: '0.64rem',
+                          fontWeight: 800,
+                          padding: '0.16rem 0.5rem',
+                          borderRadius: '0.32rem',
+                          cursor: 'pointer',
+                          fontFamily: 'monospace',
+                          border: p2On ? '1px solid rgba(56, 189, 248, 0.5)' : '1px solid #334155',
+                          background: p2On ? 'rgba(56, 189, 248, 0.16)' : '#0f172a',
+                          color: p2On ? '#38bdf8' : '#64748b',
+                        }}
+                        title="Toggle Phase 2 (FinBERT News Catalyst & Event Risk Guardrail)"
+                      >
+                        Phase 2 (News &amp; Catalyst): {p2On ? 'ON ●' : 'OFF ○'}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
           </div>
         )}
@@ -1316,6 +1402,7 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', maxHeight: '240px', overflowY: 'auto' }}>
             {historyProposals.map((p) => {
               const isExecuted = p.status === 'executed'
+              const isWorkingOnBroker = isExecuted && p.accum_logged === false
               const isBotCancelled = p.status === 'cancelled_bot_stale'
               const isFailed = p.status === 'failed'
               return (
@@ -1325,7 +1412,7 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                     padding: '0.55rem 0.75rem',
                     borderRadius: '0.5rem',
                     background: '#090d16',
-                    border: isFailed ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid #1e293b',
+                    border: isFailed ? '1px solid rgba(239, 68, 68, 0.4)' : isWorkingOnBroker ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid #1e293b',
                     fontSize: '0.74rem',
                     display: 'flex',
                     flexDirection: 'column',
@@ -1340,24 +1427,28 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                           fontWeight: 800,
                           padding: '0.1rem 0.42rem',
                           borderRadius: '0.25rem',
-                          background: isExecuted
-                            ? 'rgba(16, 185, 129, 0.18)'
-                            : isFailed
-                              ? 'rgba(239, 68, 68, 0.2)'
-                              : isBotCancelled
-                                ? 'rgba(245, 158, 11, 0.18)'
-                                : 'rgba(148, 163, 184, 0.14)',
-                          color: isExecuted ? '#34d399' : isFailed ? '#f87171' : isBotCancelled ? '#fbbf24' : '#94a3b8',
-                          border: isFailed ? '1px solid rgba(239, 68, 68, 0.4)' : undefined,
+                          background: isWorkingOnBroker
+                            ? 'rgba(245, 158, 11, 0.2)'
+                            : isExecuted
+                              ? 'rgba(16, 185, 129, 0.18)'
+                              : isFailed
+                                ? 'rgba(239, 68, 68, 0.2)'
+                                : isBotCancelled
+                                  ? 'rgba(245, 158, 11, 0.18)'
+                                  : 'rgba(148, 163, 184, 0.14)',
+                          color: isWorkingOnBroker ? '#fbbf24' : isExecuted ? '#34d399' : isFailed ? '#f87171' : isBotCancelled ? '#fbbf24' : '#94a3b8',
+                          border: isFailed ? '1px solid rgba(239, 68, 68, 0.4)' : isWorkingOnBroker ? '1px solid rgba(245, 158, 11, 0.45)' : undefined,
                         }}
                       >
-                        {isExecuted
-                          ? '✅ APPROVED & EXECUTED'
-                          : isFailed
-                            ? '❌ ORDER FAILED / REJECTED'
-                            : isBotCancelled
-                              ? '🛑 AUTO-CANCELLED BY BOT (NO LONGER WORTH IT)'
-                              : '✕ REJECTED BY USER'}
+                        {isWorkingOnBroker
+                          ? `⏳ MOOMOO WORKING (${p.broker_order_status || 'SUBMITTED'} · ${p.filled_qty ?? 0}/${p.qty} FILLED)`
+                          : isExecuted
+                            ? '✅ APPROVED & EXECUTED'
+                            : isFailed
+                              ? '❌ ORDER FAILED / REJECTED'
+                              : isBotCancelled
+                                ? '🛑 AUTO-CANCELLED BY BOT (NO LONGER WORTH IT)'
+                                : '✕ REJECTED BY USER'}
                       </span>
                       <span
                         style={{
