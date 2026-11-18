@@ -41,6 +41,7 @@ import {
   useTradingSettings,
   useUpdatePhaseConfig,
   useRefreshNewsBatch,
+  useTriggerRlTune,
 } from '../../hooks/useTrading'
 import type { TradingOrderProposal } from '../../types/trading'
 
@@ -74,6 +75,8 @@ export default function QuantPage() {
   const phaseConfigMut = useUpdatePhaseConfig()
   const reviewMut = useBotProposalReview()
   const newsRefreshMut = useRefreshNewsBatch()
+  const rlTuneMut = useTriggerRlTune()
+  const [expandedTuneId, setExpandedTuneId] = useState<number | null>(null)
 
   const allProposals: TradingOrderProposal[] = proposalsQ.data?.proposals ?? []
   const simCount = useMemo(
@@ -832,6 +835,162 @@ export default function QuantPage() {
             ) : (
               <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>
                 No cached watchlist headlines yet — click "Scan Watchlist News" or wait for the next hourly bot review.
+              </p>
+            )}
+          </div>
+
+          {/* Daily RL Model Tuning Audit Log */}
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 10 }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.03em' }}>
+                    DAILY MODEL TUNING LOG
+                  </span>
+                  <span style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    padding: '2px 7px',
+                    borderRadius: 4,
+                    background: 'rgba(16, 185, 129, 0.12)',
+                    color: 'var(--accent-green)',
+                  }}>
+                    Office-Hour Cron (10:30 MYT / 02:30 UTC + Boot Catch-Up)
+                  </span>
+                </div>
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                  Re-evaluates multi-horizon live outcomes, excludes budget-noise cancels, replays daily OHLCV bars, and logs every weight delta.
+                </p>
+              </div>
+              <button
+                onClick={() => rlTuneMut.mutate()}
+                disabled={rlTuneMut.isPending}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 12px',
+                  borderRadius: 6,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: rlTuneMut.isPending ? 'wait' : 'pointer',
+                  background: 'var(--bg-secondary)',
+                  color: 'var(--accent-green)',
+                  border: '1px solid rgba(16, 185, 129, 0.35)',
+                }}
+              >
+                <RefreshCw size={12} className={rlTuneMut.isPending ? 'spin' : ''} />
+                {rlTuneMut.isPending ? 'Tuning Model...' : 'Run Daily Tune Now'}
+              </button>
+            </div>
+
+            {rlStatusQ.data?.tuning_logs && rlStatusQ.data.tuning_logs.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {rlStatusQ.data.tuning_logs.slice(0, 5).map((tl) => {
+                  const isExpanded = expandedTuneId === tl.id
+                  const changedWeights = (tl.weight_deltas_json || []).filter((d) => Math.abs(d.delta) >= 0.001)
+                  return (
+                    <div
+                      key={tl.id}
+                      style={{
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 7,
+                        padding: '10px 12px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 11 }}>
+                          <span style={{ fontFamily: 'IBM Plex Mono', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {new Date(tl.created_at).toLocaleString()}
+                          </span>
+                          <span style={{
+                            fontSize: 9,
+                            fontWeight: 700,
+                            padding: '1px 6px',
+                            borderRadius: 4,
+                            background: tl.trigger_source === 'manual_ui' ? 'rgba(6, 182, 212, 0.14)' : 'rgba(16, 185, 129, 0.14)',
+                            color: tl.trigger_source === 'manual_ui' ? 'var(--accent-cyan)' : 'var(--accent-green)',
+                            fontFamily: 'IBM Plex Mono',
+                            textTransform: 'uppercase',
+                          }}>
+                            {tl.trigger_source === 'manual_ui' ? 'Manual Tune' : 'Daily Cron'}
+                          </span>
+                          <span style={{ fontFamily: 'IBM Plex Mono', color: 'var(--text-muted)' }}>
+                            Live: {tl.live_episodes_updated} · Replay: {tl.replay_samples_used} · Noise Excluded: {tl.excluded_budget_noise}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11, fontFamily: 'IBM Plex Mono' }}>
+                          <span style={{ color: 'var(--text-muted)' }}>
+                            Win: {Number(tl.win_rate_before_pct).toFixed(1)}% →{' '}
+                            <strong style={{ color: tl.win_rate_after_pct >= 50 ? 'var(--accent-green)' : 'var(--accent-amber)' }}>
+                              {Number(tl.win_rate_after_pct).toFixed(1)}%
+                            </strong>
+                          </span>
+                          <span style={{ color: 'var(--text-muted)' }}>
+                            Avg R: {Number(tl.avg_reward_before).toFixed(2)}% →{' '}
+                            <strong style={{ color: tl.avg_reward_after >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                              {tl.avg_reward_after >= 0 ? '+' : ''}{Number(tl.avg_reward_after).toFixed(2)}%
+                            </strong>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedTuneId(isExpanded ? null : tl.id)}
+                            style={{
+                              background: 'transparent',
+                              border: '1px solid var(--border)',
+                              borderRadius: 4,
+                              color: 'var(--accent-cyan)',
+                              fontSize: 10,
+                              padding: '2px 7px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {isExpanded ? 'Hide Deltas' : `Weights (${changedWeights.length})`}
+                          </button>
+                        </div>
+                      </div>
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0', lineHeight: 1.4 }}>
+                        {tl.summary_note}
+                      </p>
+                      {isExpanded && changedWeights.length > 0 && (
+                        <div style={{
+                          marginTop: 8,
+                          paddingTop: 8,
+                          borderTop: '1px solid var(--border)',
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                          gap: 6,
+                        }}>
+                          {changedWeights.map((d) => (
+                            <div key={d.key} style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              fontSize: 10,
+                              fontFamily: 'IBM Plex Mono',
+                              padding: '4px 8px',
+                              borderRadius: 4,
+                              background: 'rgba(15, 23, 42, 0.35)',
+                            }}>
+                              <span style={{ color: 'var(--text-muted)' }}>{d.label}</span>
+                              <span>
+                                {d.before.toFixed(2)} → {d.after.toFixed(2)}{' '}
+                                <strong style={{ color: d.delta >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                                  ({d.delta >= 0 ? '+' : ''}{d.delta.toFixed(2)})
+                                </strong>
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>
+                No daily tuning logs recorded yet — click "Run Daily Tune Now" or wait for the next office-hour run (10:30 MYT / 02:30 UTC).
               </p>
             )}
           </div>

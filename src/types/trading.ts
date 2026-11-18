@@ -500,6 +500,34 @@ export interface TickerNewsSentimentSummary {
   fetched_at: string
 }
 
+export interface RlWeightDelta {
+  key: string
+  label: string
+  before: number
+  after: number
+  delta: number
+}
+
+export interface RlTuningLogEntry {
+  id: number
+  trigger_source: string
+  policy_key: string
+  live_episodes_checked: number
+  live_episodes_updated: number
+  replay_samples_used: number
+  excluded_budget_noise: number
+  win_rate_before_pct: number
+  win_rate_after_pct: number
+  avg_reward_before: number
+  avg_reward_after: number
+  weights_before_json: Record<string, number>
+  weights_after_json: Record<string, number>
+  weight_deltas_json: RlWeightDelta[]
+  summary_note: string
+  duration_ms: number
+  created_at: string
+}
+
 export interface RlStatusResponse {
   policy: {
     policy_key?: string
@@ -521,5 +549,6 @@ export interface RlStatusResponse {
     CRYPTO: MarketRegimeSnapshot
   }
   news_feed?: TickerNewsSentimentSummary[]
+  tuning_logs?: RlTuningLogEntry[]
   onboarding_config?: PhaseOnboardingConfig
 }

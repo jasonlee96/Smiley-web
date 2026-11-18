@@ -315,3 +315,14 @@ export function useRefreshNewsBatch() {
     },
   })
 }
+
+export function useTriggerRlTune() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => tradingApi.triggerRlTune(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trading', 'rl-status'] })
+      qc.invalidateQueries({ queryKey: ['trading', 'proposals'] })
+    },
+  })
+}

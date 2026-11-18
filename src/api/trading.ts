@@ -207,4 +207,7 @@ export const tradingApi = {
 
   refreshNewsBatch: () =>
     client.post('/trading/news-refresh', {}, { timeout: 45000 }).then((r) => r.data),
+
+  triggerRlTune: () =>
+    client.post('/trading/rl-tune', {}, { timeout: 60000 }).then((r) => r.data),
 }
