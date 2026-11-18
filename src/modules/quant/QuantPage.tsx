@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { Fragment, useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
   TrendingUp,
@@ -1230,20 +1230,30 @@ export default function QuantPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  <th style={{ width: 36, padding: '10px 8px 10px 16px' }} />
-                  {['Asset / Symbol', 'Model Signal', 'Proposed Price', 'Current Price', 'Price Drift', 'Bot Review Status', 'Action'].map(h => (
+                  <th style={{ width: 36, padding: '10px 8px 10px 14px' }} />
+                  {[
+                    { label: 'Asset / Symbol', align: 'left' as const },
+                    { label: 'Order / Side', align: 'left' as const },
+                    { label: 'Model Signal', align: 'left' as const },
+                    { label: 'Proposed', align: 'right' as const },
+                    { label: 'Current', align: 'right' as const },
+                    { label: 'Drift', align: 'right' as const },
+                    { label: 'Execution & Bot Status', align: 'left' as const },
+                    { label: 'Action', align: 'right' as const },
+                  ].map((h) => (
                     <th
-                      key={h}
+                      key={h.label}
                       style={{
-                        padding: '10px 16px',
-                        textAlign: 'left',
+                        padding: '10px 12px',
+                        textAlign: h.align,
                         fontSize: 11,
                         color: 'var(--text-muted)',
                         textTransform: 'uppercase',
-                        letterSpacing: '0.08em',
+                        letterSpacing: '0.07em',
+                        whiteSpace: 'nowrap',
                       }}
                     >
-                      {h}
+                      {h.label}
                     </th>
                   ))}
                 </tr>
@@ -1253,6 +1263,8 @@ export default function QuantPage() {
                   const drift = p.price_drift_pct ?? 0
                   const isPositive = drift >= 0
                   const isExpanded = expandAll || expandedIds.has(p.id)
+                  const orderSide = String(p.side || 'BUY').toUpperCase() === 'SELL' ? 'SELL' : 'BUY'
+                  const isBuyOrder = orderSide === 'BUY'
                   const isWorkingOnBroker = p.status === 'executed' && p.accum_logged === false
                   const statusBg =
                     isWorkingOnBroker
@@ -1272,225 +1284,259 @@ export default function QuantPage() {
                           : 'var(--accent-red)'
 
                   return (
-                    <tr key={`group-${p.id}`} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td colSpan={8} style={{ padding: 0 }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                          <tbody>
-                            {/* Main Summary Row */}
-                            <tr
-                              style={{
-                                cursor: 'pointer',
-                                transition: 'background 0.15s ease',
-                                background: isExpanded ? 'rgba(255, 255, 255, 0.02)' : 'transparent',
-                              }}
-                              className="hover:bg-white/[0.03]"
-                              onClick={() => toggleExpand(p.id)}
-                            >
-                              {/* Expand Toggle */}
-                              <td style={{ width: 36, padding: '12px 8px 12px 16px', textAlign: 'center' }}>
-                                <button
-                                  type="button"
-                                  className="btn-ghost"
-                                  style={{
-                                    padding: 4,
-                                    borderRadius: 4,
-                                    color: isExpanded ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                  }}
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    toggleExpand(p.id)
-                                  }}
-                                  title={isExpanded ? 'Collapse rationale' : 'View full rationale'}
-                                >
-                                  {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-                                </button>
-                              </td>
+                    <Fragment key={p.id}>
+                      {/* Main Summary Row */}
+                      <tr
+                        style={{
+                          cursor: 'pointer',
+                          transition: 'background 0.15s ease',
+                          background: isExpanded ? 'rgba(255, 255, 255, 0.02)' : 'transparent',
+                          borderBottom: isExpanded ? 'none' : '1px solid var(--border)',
+                        }}
+                        className="hover:bg-white/[0.03]"
+                        onClick={() => toggleExpand(p.id)}
+                      >
+                        {/* 1. Expand Toggle */}
+                        <td style={{ width: 36, padding: '12px 8px 12px 14px', textAlign: 'center', verticalAlign: 'middle' }}>
+                          <button
+                            type="button"
+                            className="btn-ghost"
+                            style={{
+                              padding: 4,
+                              borderRadius: 4,
+                              color: isExpanded ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              toggleExpand(p.id)
+                            }}
+                            title={isExpanded ? 'Collapse rationale' : 'View full rationale'}
+                          >
+                            {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                          </button>
+                        </td>
 
-                              {/* Asset & Symbol */}
-                              <td style={{ padding: '12px 16px', minWidth: 160 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                  <span style={{ fontFamily: 'IBM Plex Mono', fontWeight: 600, fontSize: 13 }}>
-                                    {p.symbol}
-                                  </span>
-                                  <span style={{
-                                    fontSize: 10,
-                                    padding: '1px 6px',
-                                    borderRadius: 4,
-                                    background: 'var(--bg-secondary)',
-                                    color: 'var(--text-muted)',
-                                    border: '1px solid var(--border)',
-                                    textTransform: 'uppercase',
-                                  }}>
-                                    {p.asset_type || 'STOCK'}
-                                  </span>
-                                  <span style={{
-                                    fontSize: 10,
-                                    fontWeight: 700,
-                                    padding: '1px 6px',
-                                    borderRadius: 4,
-                                    background: p.trade_env === 'REAL' ? 'rgba(245,158,11,0.16)' : 'rgba(6,182,212,0.12)',
-                                    color: p.trade_env === 'REAL' ? 'var(--accent-amber)' : 'var(--accent-cyan)',
-                                    border: `1px solid ${p.trade_env === 'REAL' ? 'rgba(245,158,11,0.35)' : 'rgba(6,182,212,0.3)'}`,
-                                  }}>
-                                    {p.trade_env === 'REAL' ? 'REAL' : 'SIM'}
-                                  </span>
-                                </div>
-                                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                                  {p.name !== p.symbol ? p.name : ''} · {new Date(p.created_at).toLocaleDateString()}
-                                </p>
-                              </td>
+                        {/* 2. Asset & Symbol */}
+                        <td style={{ padding: '12px', verticalAlign: 'middle' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <span style={{ fontFamily: 'IBM Plex Mono', fontWeight: 700, fontSize: 13 }}>
+                              {p.symbol}
+                            </span>
+                            <span style={{
+                              fontSize: 10,
+                              padding: '1px 5px',
+                              borderRadius: 4,
+                              background: 'var(--bg-secondary)',
+                              color: 'var(--text-muted)',
+                              border: '1px solid var(--border)',
+                              textTransform: 'uppercase',
+                            }}>
+                              {p.asset_type || 'STOCK'}
+                            </span>
+                            <span style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              padding: '1px 5px',
+                              borderRadius: 4,
+                              background: p.trade_env === 'REAL' ? 'rgba(245,158,11,0.16)' : 'rgba(6,182,212,0.12)',
+                              color: p.trade_env === 'REAL' ? 'var(--accent-amber)' : 'var(--accent-cyan)',
+                              border: `1px solid ${p.trade_env === 'REAL' ? 'rgba(245,158,11,0.35)' : 'rgba(6,182,212,0.3)'}`,
+                            }}>
+                              {p.trade_env === 'REAL' ? 'REAL' : 'SIM'}
+                            </span>
+                          </div>
+                          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, whiteSpace: 'nowrap' }}>
+                            {p.name !== p.symbol ? `${p.name} · ` : ''}{new Date(p.created_at).toLocaleDateString()}
+                          </p>
+                        </td>
 
-                              {/* Signal & Score */}
-                              <td style={{ padding: '12px 16px', minWidth: 180 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                  <span style={{
-                                    fontSize: 11,
-                                    fontWeight: 600,
-                                    padding: '2px 8px',
-                                    borderRadius: 4,
-                                    background: p.proposed_signal?.toLowerCase().includes('buy') ? 'rgba(16,185,129,0.14)' : 'rgba(239,68,68,0.14)',
-                                    color: p.proposed_signal?.toLowerCase().includes('buy') ? 'var(--accent-green)' : 'var(--accent-red)',
-                                  }}>
-                                    {p.proposed_signal?.toUpperCase() || p.side}
-                                  </span>
-                                  <span style={{
-                                    fontSize: 11,
-                                    fontFamily: 'IBM Plex Mono',
-                                    color: p.proposed_dca_score >= 70 ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                                  }}>
-                                    DCA: {p.proposed_dca_score}
-                                  </span>
-                                  {p.rl_q_score != null && (
-                                    <span style={{
-                                      fontSize: 10,
-                                      fontFamily: 'IBM Plex Mono',
-                                      padding: '1px 5px',
-                                      borderRadius: 4,
-                                      background: p.rl_q_score >= 0 ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
-                                      color: p.rl_q_score >= 0 ? 'var(--accent-green)' : 'var(--accent-red)',
-                                      border: `1px solid ${p.rl_q_score >= 0 ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
-                                    }} title={`RL Expected Q-Edge: ${p.rl_q_score >= 0 ? '+' : ''}${Number(p.rl_q_score).toFixed(1)}% · Macro: ${p.macro_regime || 'neutral'}`}>
-                                      Q:{p.rl_q_score >= 0 ? '+' : ''}{Number(p.rl_q_score).toFixed(1)}%
-                                    </span>
-                                  )}
-                                  {p.news_sentiment_score != null && (
-                                    <span style={{
-                                      fontSize: 10,
-                                      fontFamily: 'IBM Plex Mono',
-                                      padding: '1px 5px',
-                                      borderRadius: 4,
-                                      background: p.news_sentiment_score >= 0.08
-                                        ? 'rgba(16,185,129,0.12)'
-                                        : p.news_sentiment_score <= -0.08
-                                        ? 'rgba(239,68,68,0.12)'
-                                        : 'rgba(148,163,184,0.12)',
-                                      color: p.news_sentiment_score >= 0.08
-                                        ? 'var(--accent-green)'
-                                        : p.news_sentiment_score <= -0.08
-                                        ? 'var(--accent-red)'
-                                        : 'var(--text-muted)',
-                                    }} title={p.news_headline_summary || `News Catalyst: ${p.news_catalyst_tag || 'general'}`}>
-                                      News:{p.news_sentiment_score >= 0 ? '+' : ''}{Number(p.news_sentiment_score).toFixed(2)}
-                                    </span>
-                                  )}
-                                </div>
-                                {!isExpanded && p.proposal_reason && (
-                                  <p style={{
-                                    fontSize: 11,
-                                    color: 'var(--text-muted)',
-                                    marginTop: 4,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 4,
-                                  }}>
-                                    <span style={{ color: 'var(--accent-cyan)', fontSize: 10 }}>[Click to view full rationale]</span>
-                                  </p>
-                                )}
-                              </td>
+                        {/* 3. Order / Side (BUY / SELL) */}
+                        <td style={{ padding: '12px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{
+                              fontSize: 11,
+                              fontWeight: 800,
+                              fontFamily: 'IBM Plex Mono',
+                              padding: '2px 8px',
+                              borderRadius: 4,
+                              letterSpacing: '0.04em',
+                              background: isBuyOrder ? 'rgba(16,185,129,0.18)' : 'rgba(239,68,68,0.18)',
+                              color: isBuyOrder ? 'var(--accent-green)' : 'var(--accent-red)',
+                              border: `1px solid ${isBuyOrder ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)'}`,
+                            }}>
+                              {orderSide}
+                            </span>
+                            <span style={{ fontSize: 11, fontFamily: 'IBM Plex Mono', color: 'var(--text-primary)' }}>
+                              {p.qty}
+                            </span>
+                          </div>
+                          <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>
+                            {p.lot_label || '$100 Unit'}
+                          </p>
+                        </td>
 
-                              {/* Proposed Price */}
-                              <td style={{ padding: '12px 16px', fontFamily: 'IBM Plex Mono', fontSize: 13, minWidth: 110 }}>
-                                {fmtPrice(p.proposed_price)}
-                              </td>
+                        {/* 4. Model Signal & Score */}
+                        <td style={{ padding: '12px', verticalAlign: 'middle' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+                            <span style={{
+                              fontSize: 10,
+                              fontWeight: 600,
+                              padding: '2px 6px',
+                              borderRadius: 4,
+                              background: p.proposed_signal?.toLowerCase().includes('buy') ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+                              color: p.proposed_signal?.toLowerCase().includes('buy') ? 'var(--accent-green)' : 'var(--accent-red)',
+                            }}>
+                              {p.proposed_signal?.toUpperCase() || orderSide}
+                            </span>
+                            <span style={{
+                              fontSize: 11,
+                              fontFamily: 'IBM Plex Mono',
+                              color: p.proposed_dca_score >= 70 ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                            }}>
+                              DCA:{p.proposed_dca_score}
+                            </span>
+                            {p.rl_q_score != null && (
+                              <span style={{
+                                fontSize: 10,
+                                fontFamily: 'IBM Plex Mono',
+                                padding: '1px 5px',
+                                borderRadius: 4,
+                                background: p.rl_q_score >= 0 ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+                                color: p.rl_q_score >= 0 ? 'var(--accent-green)' : 'var(--accent-red)',
+                                border: `1px solid ${p.rl_q_score >= 0 ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                              }} title={`RL Expected Q-Edge: ${p.rl_q_score >= 0 ? '+' : ''}${Number(p.rl_q_score).toFixed(1)}% · Macro: ${p.macro_regime || 'neutral'}`}>
+                                Q:{p.rl_q_score >= 0 ? '+' : ''}{Number(p.rl_q_score).toFixed(1)}%
+                              </span>
+                            )}
+                            {p.news_sentiment_score != null && (
+                              <span style={{
+                                fontSize: 10,
+                                fontFamily: 'IBM Plex Mono',
+                                padding: '1px 5px',
+                                borderRadius: 4,
+                                background: p.news_sentiment_score >= 0.08
+                                  ? 'rgba(16,185,129,0.12)'
+                                  : p.news_sentiment_score <= -0.08
+                                  ? 'rgba(239,68,68,0.12)'
+                                  : 'rgba(148,163,184,0.12)',
+                                color: p.news_sentiment_score >= 0.08
+                                  ? 'var(--accent-green)'
+                                  : p.news_sentiment_score <= -0.08
+                                  ? 'var(--accent-red)'
+                                  : 'var(--text-muted)',
+                              }} title={p.news_headline_summary || `News Catalyst: ${p.news_catalyst_tag || 'general'}`}>
+                                News:{p.news_sentiment_score >= 0 ? '+' : ''}{Number(p.news_sentiment_score).toFixed(2)}
+                              </span>
+                            )}
+                          </div>
+                          {!isExpanded && p.proposal_reason && (
+                            <p style={{ fontSize: 10, color: 'var(--accent-cyan)', marginTop: 3 }}>
+                              [Click row for full rationale]
+                            </p>
+                          )}
+                        </td>
 
-                              {/* Current Price */}
-                              <td style={{ padding: '12px 16px', fontFamily: 'IBM Plex Mono', fontSize: 13, minWidth: 110 }}>
-                                {fmtPrice(p.current_price)}
-                              </td>
+                        {/* 5. Proposed Price */}
+                        <td style={{ padding: '12px', textAlign: 'right', fontFamily: 'IBM Plex Mono', fontSize: 13, verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                          <div>{fmtPrice(p.proposed_price)}</div>
+                          {p.status === 'executed' && p.filled_avg_price != null && Number(p.filled_avg_price) !== Number(p.proposed_price) && (
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                              Fill {fmtPrice(p.filled_avg_price)}
+                            </div>
+                          )}
+                        </td>
 
-                              {/* Price Drift */}
-                              <td style={{ padding: '12px 16px', minWidth: 110 }}>
-                                <span style={{
-                                  fontFamily: 'IBM Plex Mono',
-                                  fontSize: 13,
-                                  fontWeight: 600,
-                                  color: isPositive ? 'var(--accent-green)' : 'var(--accent-red)',
-                                }}>
-                                  {fmtPct(drift)}
-                                </span>
-                              </td>
+                        {/* 6. Current Price */}
+                        <td style={{ padding: '12px', textAlign: 'right', fontFamily: 'IBM Plex Mono', fontSize: 13, verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                          {fmtPrice(p.current_price)}
+                        </td>
 
-                              {/* Bot Review Status */}
-                              <td style={{ padding: '12px 16px', minWidth: 170 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                  <span style={{
-                                    fontSize: 10,
-                                    fontWeight: 600,
-                                    padding: '2px 7px',
-                                    borderRadius: 4,
-                                    background: statusBg,
-                                    color: statusColor,
-                                    textTransform: 'uppercase',
-                                  }}>
-                                    {isWorkingOnBroker
-                                      ? `WORKING (${p.broker_order_status || 'SUBMITTED'} · ${p.filled_qty ?? 0}/${p.qty})`
-                                      : p.status.replace(/_/g, ' ')}
-                                  </span>
-                                  {p.still_worth_it ? (
-                                    <span style={{ fontSize: 10, color: 'var(--accent-green)', fontWeight: 500 }} title="Bot re-evaluated and confirmed setup is still valid">
-                                      ● Valid
-                                    </span>
-                                  ) : (
-                                    <span style={{ fontSize: 10, color: 'var(--accent-amber)', fontWeight: 500 }} title="Bot flagged condition as faded / stale">
-                                      ▲ Faded
-                                    </span>
-                                  )}
-                                </div>
-                                {!isExpanded && (
-                                  <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>
-                                    Checked #{p.bot_review_count || 1}
-                                  </p>
-                                )}
-                              </td>
+                        {/* 7. Price Drift */}
+                        <td style={{ padding: '12px', textAlign: 'right', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                          <span style={{
+                            fontFamily: 'IBM Plex Mono',
+                            fontSize: 13,
+                            fontWeight: 700,
+                            color: isPositive ? 'var(--accent-green)' : 'var(--accent-red)',
+                          }}>
+                            {fmtPct(drift)}
+                          </span>
+                          {p.realized_pnl != null && Number(p.realized_pnl) !== 0 && (
+                            <div style={{
+                              fontSize: 10,
+                              fontFamily: 'IBM Plex Mono',
+                              color: Number(p.realized_pnl) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)',
+                              marginTop: 2,
+                            }}>
+                              PnL {Number(p.realized_pnl) >= 0 ? '+' : ''}{fmtPrice(p.realized_pnl)}
+                            </div>
+                          )}
+                        </td>
 
-                              {/* Action Link to Trading */}
-                              <td style={{ padding: '12px 16px', minWidth: 120 }}>
-                                <Link
-                                  to="/internal/trading"
-                                  onClick={(e) => e.stopPropagation()}
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: 4,
-                                    fontSize: 12,
-                                    color: 'var(--accent-cyan)',
-                                    textDecoration: 'none',
-                                    fontWeight: 500,
-                                  }}
-                                >
-                                  Trading Hub
-                                  <ChevronRight size={13} />
-                                </Link>
-                              </td>
-                            </tr>
+                        {/* 8. Execution & Bot Review Status */}
+                        <td style={{ padding: '12px', verticalAlign: 'middle' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <span style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              padding: '2px 7px',
+                              borderRadius: 4,
+                              background: statusBg,
+                              color: statusColor,
+                              textTransform: 'uppercase',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              {isWorkingOnBroker
+                                ? `WORKING ${orderSide} (${p.broker_order_status || 'SUBMITTED'} · ${p.filled_qty ?? 0}/${p.qty})`
+                                : p.status === 'executed'
+                                  ? `EXECUTED ${orderSide}`
+                                  : p.status.replace(/_/g, ' ')}
+                            </span>
+                            {p.still_worth_it ? (
+                              <span style={{ fontSize: 10, color: 'var(--accent-green)', fontWeight: 500, whiteSpace: 'nowrap' }} title="Bot re-evaluated and confirmed setup is still valid">
+                                ● Valid
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: 10, color: 'var(--accent-amber)', fontWeight: 500, whiteSpace: 'nowrap' }} title="Bot flagged condition as faded / stale">
+                                ▲ Faded
+                              </span>
+                            )}
+                          </div>
+                          {!isExpanded && (
+                            <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>
+                              Checked #{p.bot_review_count || 1}
+                            </p>
+                          )}
+                        </td>
 
-                            {/* Full Un-truncated Rationale & Decision Details Drawer */}
-                            {isExpanded && (
-                              <tr style={{ background: 'rgba(255, 255, 255, 0.012)' }}>
-                                <td colSpan={8} style={{ padding: '8px 20px 20px 48px' }}>
+                        {/* 9. Action Link to Trading */}
+                        <td style={{ padding: '12px', textAlign: 'right', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                          <Link
+                            to="/internal/trading"
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              fontSize: 12,
+                              color: 'var(--accent-cyan)',
+                              textDecoration: 'none',
+                              fontWeight: 500,
+                            }}
+                          >
+                            Trading Hub
+                            <ChevronRight size={13} />
+                          </Link>
+                        </td>
+                      </tr>
+
+                      {/* Full Un-truncated Rationale & Decision Details Drawer */}
+                      {isExpanded && (
+                        <tr style={{ background: 'rgba(255, 255, 255, 0.012)', borderBottom: '1px solid var(--border)' }}>
+                          <td colSpan={9} style={{ padding: '8px 20px 20px 48px' }}>
                                   <div style={{
                                     display: 'grid',
                                     gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
@@ -1654,10 +1700,7 @@ export default function QuantPage() {
                                 </td>
                               </tr>
                             )}
-                          </tbody>
-                        </table>
-                      </td>
-                    </tr>
+                    </Fragment>
                   )
                 })}
               </tbody>
