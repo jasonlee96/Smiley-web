@@ -552,3 +552,54 @@ export interface RlStatusResponse {
   tuning_logs?: RlTuningLogEntry[]
   onboarding_config?: PhaseOnboardingConfig
 }
+
+export interface DividendCalendarTicker {
+  symbol: string
+  name: string
+  asset_type: AssetType
+  currency: string
+  price: number
+  in_watchlist: boolean
+  held_qty: number
+  avg_cost: number | null
+  trailing_12m_dps: number
+  trailing_yield_pct: number
+  yield_on_cost_pct: number | null
+  payout_frequency: 'Monthly' | 'Quarterly' | 'Semi-Annual' | 'Annual' | 'None'
+  payout_months: number[]
+  monthly_dps: Record<number, number>
+  est_annual_held: number
+  est_annual_sim: number
+  last_div_date: string | null
+  last_div_amount: number | null
+}
+
+export interface DividendCalendarMonthPayout {
+  symbol: string
+  name: string
+  currency: string
+  in_watchlist: boolean
+  held_qty: number
+  payout_frequency: string
+  dps: number
+  est_held_payout: number
+  est_sim_payout: number
+  trailing_yield_pct: number
+}
+
+export interface DividendCalendarMonth {
+  month: number
+  label: string
+  payouts: DividendCalendarMonthPayout[]
+  total_held_by_ccy: Record<string, number>
+  total_sim_by_ccy: Record<string, number>
+}
+
+export interface DividendCalendarResponse {
+  trd_env: string
+  sim_invest: number
+  annual_held_by_ccy: Record<string, number>
+  tickers: DividendCalendarTicker[]
+  months: DividendCalendarMonth[]
+  generated_at: string
+}

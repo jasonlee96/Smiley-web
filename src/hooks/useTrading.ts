@@ -326,3 +326,11 @@ export function useTriggerRlTune() {
     },
   })
 }
+
+export function useDividendCalendar(trdEnv: 'ALL' | 'SIMULATE' | 'REAL' = 'ALL', simInvest = 1000) {
+  return useQuery({
+    queryKey: ['trading', 'dividend-calendar', trdEnv, simInvest],
+    queryFn: () => tradingApi.getDividendCalendar(trdEnv, simInvest),
+    staleTime: 5 * 60 * 1000,
+  })
+}

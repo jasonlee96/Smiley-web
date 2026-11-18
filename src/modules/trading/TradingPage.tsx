@@ -23,6 +23,7 @@ import IndicatorMatrix from './IndicatorMatrix'
 import AiThesisCard from './AiThesisCard'
 import TradingAlertModal from './TradingAlertModal'
 import MonthlyDcaTab from './MonthlyDcaTab'
+import DividendCalendarTab from './DividendCalendarTab'
 import {
   useTradingWatchlist,
   useTradingSnapshot,
@@ -71,7 +72,7 @@ function signalMeta(sig: TechnicalSignal) {
 }
 
 export default function TradingPage() {
-  const [activeView, setActiveView] = useState<'monthly_dca' | 'terminal'>('monthly_dca')
+  const [activeView, setActiveView] = useState<'monthly_dca' | 'dividend_calendar' | 'terminal'>('monthly_dca')
   const [tickerInput, setTickerInput] = useState('BTC')
   const [assetTypeHint, setAssetTypeHint] = useState<'auto' | AssetType>('auto')
   const [timeframe, setTimeframe] = useState<Timeframe>('1d')
@@ -326,6 +327,30 @@ export default function TradingPage() {
 
           <button
             type="button"
+            onClick={() => setActiveView('dividend_calendar')}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 8,
+              border: activeView === 'dividend_calendar' ? '1px solid rgba(245, 158, 11, 0.5)' : '1px solid transparent',
+              background:
+                activeView === 'dividend_calendar'
+                  ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(16, 185, 129, 0.14))'
+                  : 'transparent',
+              color: activeView === 'dividend_calendar' ? 'var(--accent-amber)' : 'var(--text-secondary)',
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              transition: 'all 0.15s',
+            }}
+          >
+            <span>📅 Dividend Supply Calendar</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveView('terminal')}
             style={{
               padding: '8px 16px',
@@ -535,6 +560,8 @@ export default function TradingPage() {
             handleRunFetchAndAnalyze(sym, at, tf, false)
           }}
         />
+      ) : activeView === 'dividend_calendar' ? (
+        <DividendCalendarTab />
       ) : (
       /* Main Layout: Left Watchlist Rail + Right Analysis Workbench */
       <div className="trading-main-grid">

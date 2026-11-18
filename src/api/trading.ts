@@ -16,6 +16,7 @@ import type {
   MarketDiscoveryItem,
   RlStatusResponse,
   PhaseOnboardingConfig,
+  DividendCalendarResponse,
 } from '../types/trading'
 
 export const tradingApi = {
@@ -210,4 +211,12 @@ export const tradingApi = {
 
   triggerRlTune: () =>
     client.post('/trading/rl-tune', {}, { timeout: 60000 }).then((r) => r.data),
+
+  getDividendCalendar: (trd_env: 'ALL' | 'SIMULATE' | 'REAL' = 'ALL', sim_invest = 1000) =>
+    client
+      .get<DividendCalendarResponse>('/trading/dividend-calendar', {
+        params: { trd_env, sim_invest },
+        timeout: 45000,
+      })
+      .then((r) => r.data),
 }
