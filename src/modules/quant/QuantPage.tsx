@@ -1244,12 +1244,12 @@ export default function QuantPage() {
                     <th
                       key={h.label}
                       style={{
-                        padding: '10px 12px',
+                        padding: '10px 8px',
                         textAlign: h.align,
-                        fontSize: 11,
+                        fontSize: 10,
                         color: 'var(--text-muted)',
                         textTransform: 'uppercase',
-                        letterSpacing: '0.07em',
+                        letterSpacing: '0.06em',
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -1320,8 +1320,8 @@ export default function QuantPage() {
                         </td>
 
                         {/* 2. Asset & Symbol */}
-                        <td style={{ padding: '12px', verticalAlign: 'middle' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <td style={{ padding: '10px 8px', verticalAlign: 'middle', maxWidth: 185 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                             <span style={{ fontFamily: 'IBM Plex Mono', fontWeight: 700, fontSize: 13 }}>
                               {p.symbol}
                             </span>
@@ -1348,19 +1348,19 @@ export default function QuantPage() {
                               {p.trade_env === 'REAL' ? 'REAL' : 'SIM'}
                             </span>
                           </div>
-                          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, whiteSpace: 'nowrap' }}>
+                          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.35, wordBreak: 'break-word' }}>
                             {p.name !== p.symbol ? `${p.name} · ` : ''}{new Date(p.created_at).toLocaleDateString()}
                           </p>
                         </td>
 
                         {/* 3. Order / Side (BUY / SELL) */}
-                        <td style={{ padding: '12px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <td style={{ padding: '10px 8px', verticalAlign: 'middle', maxWidth: 125 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
                             <span style={{
-                              fontSize: 11,
+                              fontSize: 10,
                               fontWeight: 800,
                               fontFamily: 'IBM Plex Mono',
-                              padding: '2px 8px',
+                              padding: '2px 7px',
                               borderRadius: 4,
                               letterSpacing: '0.04em',
                               background: isBuyOrder ? 'rgba(16,185,129,0.18)' : 'rgba(239,68,68,0.18)',
@@ -1373,13 +1373,13 @@ export default function QuantPage() {
                               {p.qty}
                             </span>
                           </div>
-                          <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>
+                          <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3, lineHeight: 1.3, wordBreak: 'break-word' }}>
                             {p.lot_label || '$100 Unit'}
                           </p>
                         </td>
 
                         {/* 4. Model Signal & Score */}
-                        <td style={{ padding: '12px', verticalAlign: 'middle' }}>
+                        <td style={{ padding: '10px 8px', verticalAlign: 'middle' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                             <span style={{
                               fontSize: 10,
@@ -1440,7 +1440,7 @@ export default function QuantPage() {
                         </td>
 
                         {/* 5. Proposed Price */}
-                        <td style={{ padding: '12px', textAlign: 'right', fontFamily: 'IBM Plex Mono', fontSize: 13, verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '10px 8px', textAlign: 'right', fontFamily: 'IBM Plex Mono', fontSize: 12, verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                           <div>{fmtPrice(p.proposed_price)}</div>
                           {p.status === 'executed' && p.filled_avg_price != null && Number(p.filled_avg_price) !== Number(p.proposed_price) && (
                             <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
@@ -1450,15 +1450,15 @@ export default function QuantPage() {
                         </td>
 
                         {/* 6. Current Price */}
-                        <td style={{ padding: '12px', textAlign: 'right', fontFamily: 'IBM Plex Mono', fontSize: 13, verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '10px 8px', textAlign: 'right', fontFamily: 'IBM Plex Mono', fontSize: 12, verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                           {fmtPrice(p.current_price)}
                         </td>
 
                         {/* 7. Price Drift */}
-                        <td style={{ padding: '12px', textAlign: 'right', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '10px 8px', textAlign: 'right', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                           <span style={{
                             fontFamily: 'IBM Plex Mono',
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: 700,
                             color: isPositive ? 'var(--accent-green)' : 'var(--accent-red)',
                           }}>
@@ -1477,7 +1477,7 @@ export default function QuantPage() {
                         </td>
 
                         {/* 8. Execution & Bot Review Status */}
-                        <td style={{ padding: '12px', verticalAlign: 'middle' }}>
+                        <td style={{ padding: '10px 8px', verticalAlign: 'middle' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                             <span style={{
                               fontSize: 10,
@@ -1513,22 +1513,22 @@ export default function QuantPage() {
                         </td>
 
                         {/* 9. Action Link to Trading */}
-                        <td style={{ padding: '12px', textAlign: 'right', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '10px 8px', textAlign: 'right', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                           <Link
                             to="/internal/trading"
                             onClick={(e) => e.stopPropagation()}
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: 4,
-                              fontSize: 12,
+                              gap: 3,
+                              fontSize: 11,
                               color: 'var(--accent-cyan)',
                               textDecoration: 'none',
                               fontWeight: 500,
                             }}
                           >
-                            Trading Hub
-                            <ChevronRight size={13} />
+                            Trading
+                            <ChevronRight size={12} />
                           </Link>
                         </td>
                       </tr>
