@@ -642,6 +642,61 @@ export default function QuantPage() {
                   💵 REAL Phase 2: {cfg.phase2_real_enabled ? 'ON ●' : 'OFF ○'}
                 </button>
               </div>
+
+              {/* Per-Environment Allowed Markets (e.g. disable SGX in SIMULATE since Moomoo SIMULATE only supports US/HK) */}
+              {(() => {
+                const simMarkets = cfg.simulate_markets || ['US', 'CRYPTO']
+                const realMarkets = cfg.real_markets || ['US', 'SGX', 'CRYPTO']
+                const toggleMkt = (env: 'SIMULATE' | 'REAL', mkt: string) => {
+                  const cur = env === 'SIMULATE' ? simMarkets : realMarkets
+                  const next = cur.includes(mkt) ? cur.filter((x) => x !== mkt) : [...cur, mkt]
+                  phaseConfigMut.mutate(
+                    env === 'SIMULATE' ? { simulate_markets: next } : { real_markets: next },
+                  )
+                }
+                const mktPill = (env: 'SIMULATE' | 'REAL', mkt: string, active: boolean) => (
+                  <button
+                    key={`${env}-${mkt}`}
+                    type="button"
+                    disabled={phaseConfigMut.isPending}
+                    onClick={() => toggleMkt(env, mkt)}
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: 5,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      fontFamily: 'IBM Plex Mono',
+                      cursor: phaseConfigMut.isPending ? 'wait' : 'pointer',
+                      border: active
+                        ? env === 'REAL'
+                          ? '1px solid rgba(245, 158, 11, 0.5)'
+                          : '1px solid rgba(16, 185, 129, 0.5)'
+                        : '1px solid var(--border)',
+                      background: active
+                        ? env === 'REAL'
+                          ? 'rgba(245, 158, 11, 0.14)'
+                          : 'rgba(16, 185, 129, 0.14)'
+                        : 'transparent',
+                      color: active ? (env === 'REAL' ? 'var(--accent-amber)' : 'var(--accent-green)') : 'var(--text-muted)',
+                    }}
+                    title={`Toggle ${mkt} market proposals for ${env}`}
+                  >
+                    {mkt} {active ? '✓' : '✕'}
+                  </button>
+                )
+                return (
+                  <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>🧪 SIMULATE Markets:</span>
+                      {(['US', 'SGX', 'CRYPTO'] as const).map((m) => mktPill('SIMULATE', m, simMarkets.includes(m)))}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>💵 REAL Markets:</span>
+                      {(['US', 'SGX', 'CRYPTO'] as const).map((m) => mktPill('REAL', m, realMarkets.includes(m)))}
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
           )
         })()}

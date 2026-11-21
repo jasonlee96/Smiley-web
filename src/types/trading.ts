@@ -237,6 +237,8 @@ export interface PhaseOnboardingConfig {
   phase1_real_enabled: boolean
   phase2_simulate_enabled: boolean
   phase2_real_enabled: boolean
+  simulate_markets?: string[]
+  real_markets?: string[]
 }
 
 export interface SnapshotHistoryItem {
