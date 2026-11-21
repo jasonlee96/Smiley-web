@@ -933,10 +933,23 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                   phase1_real_enabled: true,
                   phase2_simulate_enabled: true,
                   phase2_real_enabled: true,
+                  simulate_markets: ['US', 'CRYPTO'],
+                  real_markets: ['US', 'SGX', 'CRYPTO'],
                 }
                 const isReal = selectedTradeEnv === 'REAL'
                 const p1On = isReal ? pCfg.phase1_real_enabled : pCfg.phase1_simulate_enabled
                 const p2On = isReal ? pCfg.phase2_real_enabled : pCfg.phase2_simulate_enabled
+                const envMarkets = isReal
+                  ? pCfg.real_markets || ['US', 'SGX', 'CRYPTO']
+                  : pCfg.simulate_markets || ['US', 'CRYPTO']
+                const toggleEnvMarket = (mkt: string) => {
+                  const next = envMarkets.includes(mkt)
+                    ? envMarkets.filter((x) => x !== mkt)
+                    : [...envMarkets, mkt]
+                  updatePhaseConfigMutation.mutate(
+                    isReal ? { real_markets: next } : { simulate_markets: next },
+                  )
+                }
                 return (
                   <div
                     style={{
@@ -1003,6 +1016,43 @@ export default function MonthlyDcaTab({ onSelectTickerForTerminal }: Props) {
                       >
                         Phase 2 (News &amp; Catalyst): {p2On ? 'ON ●' : 'OFF ○'}
                       </button>
+
+                      <span style={{ fontSize: '0.62rem', color: '#94a3b8', marginLeft: '0.25rem' }}>
+                        Markets:
+                      </span>
+                      {(['US', 'SGX', 'CRYPTO'] as const).map((mkt) => {
+                        const active = envMarkets.includes(mkt)
+                        return (
+                          <button
+                            key={mkt}
+                            type="button"
+                            disabled={updatePhaseConfigMutation.isPending}
+                            onClick={() => toggleEnvMarket(mkt)}
+                            style={{
+                              fontSize: '0.62rem',
+                              fontWeight: 800,
+                              padding: '0.14rem 0.42rem',
+                              borderRadius: '0.3rem',
+                              cursor: 'pointer',
+                              fontFamily: 'monospace',
+                              border: active
+                                ? isReal
+                                  ? '1px solid rgba(245, 158, 11, 0.5)'
+                                  : '1px solid rgba(16, 185, 129, 0.5)'
+                                : '1px solid #334155',
+                              background: active
+                                ? isReal
+                                  ? 'rgba(245, 158, 11, 0.16)'
+                                  : 'rgba(16, 185, 129, 0.14)'
+                                : '#0f172a',
+                              color: active ? (isReal ? '#fbbf24' : '#34d399') : '#64748b',
+                            }}
+                            title={`Toggle ${mkt} market proposals for ${selectedTradeEnv}`}
+                          >
+                            {mkt} {active ? '✓' : '✕'}
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
                 )
